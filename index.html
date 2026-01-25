@@ -149,21 +149,15 @@ function parseCSVLine(line) {
 }
 
 function openLogin(email, password) {
-  // Lưu credentials
-  localStorage.setItem('vsp_email', email);
-  localStorage.setItem('vsp_pass', password);
+  // Encode để tránh lỗi URL
+  const encodedEmail = encodeURIComponent(email);
+  const encodedPass = encodeURIComponent(password);
   
-  // Thông báo và mở tab mới
-  console.log('[VSP Manager] Credentials saved, opening login page...');
+  // Truyền credentials qua URL parameters
+  const loginUrl = `https://cloud.vsphone.com/login?email=${encodedEmail}&pass=${encodedPass}`;
   
-  const loginWindow = window.open('https://cloud.vsphone.com/login', '_blank');
-  
-  // Xóa credentials sau 30 giây (bảo mật)
-  setTimeout(() => {
-    localStorage.removeItem('vsp_email');
-    localStorage.removeItem('vsp_pass');
-    console.log('[VSP Manager] Credentials cleared for security');
-  }, 30000);
+  console.log('[VSP Manager] Opening login page with credentials...');
+  window.open(loginUrl, '_blank');
 }
 
 // Load và hiển thị dữ liệu
