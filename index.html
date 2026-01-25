@@ -8,8 +8,7 @@ body{font-family:Arial;background:#0f172a;color:#e5e7eb;padding:20px}
 table{width:100%;border-collapse:collapse;margin-top:15px}
 th,td{padding:10px;border-bottom:1px solid #334155}
 th{background:#1e293b}
-.btn{padding:6px 12px;background:#22c55e;color:#022c22;
-border-radius:6px;font-weight:bold;cursor:pointer}
+.btn{padding:6px 12px;background:#22c55e;color:#022c22;border-radius:6px;font-weight:bold;cursor:pointer}
 .btn:hover{background:#16a34a}
 .note{font-size:13px;color:#cbd5f5}
 </style>
@@ -17,7 +16,7 @@ border-radius:6px;font-weight:bold;cursor:pointer}
 <body>
 
 <h2>📱 VSPhone – Quản lý tài khoản</h2>
-<p class="note">Bấm LOGIN → mở VSPhone → dùng bookmarklet để auto điền</p>
+<p class="note">Acc được lấy trực tiếp từ Google Sheet (CSV)</p>
 
 <table>
 <thead>
@@ -33,44 +32,51 @@ border-radius:6px;font-weight:bold;cursor:pointer}
 </table>
 
 <script>
-const CSV_URL = 'DÁN_LINK_CSV_Ở_ĐÂY';
+// LINK CSV ĐÚNG (pub?output=csv)
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSyIS6NTiGHKz7BR5e8PEshKhRJWJcUC9bR8Gp5_WuqfsEGOwRdaARGcR-CwV7Dn_gUYRxcZ12Yb20I/pub?output=csv';
 
-function parseCSV(line){
-  return line.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g)
-    .map(s=>s.replace(/^"|"$/g,''));
+function parseCSVLine(line){
+  const regex = /(".*?"|[^",]+)(?=\s*,|\s*$)/g;
+  const result = line.match(regex);
+  return result ? result.map(v => v.replace(/^"|"$/g, '').trim()) : [];
 }
 
 fetch(CSV_URL)
-.then(r=>r.text())
-.then(t=>{
-  const rows=t.trim().split('\n').slice(1);
-  const tb=document.getElementById('tbody');
-  rows.forEach(r=>{
-    const [platform,email,pass,status]=parseCSV(r);
-    tb.innerHTML+=`
-    <tr>
-      <td>${platform}</td>
-      <td>${email}</td>
-      <td>${pass}</td>
-      <td>${status}</td>
-      <td>
-        <button class="btn"
-        onclick="openLogin('${email}','${pass}')">
-        LOGIN</button>
-      </td>
-    </tr>`;
-  });
-});
+  .then(res => res.text())
+  .then(text => {
+    text = text.replace(/\uFEFF/g, '').trim();
+    const lines = text.split(/\r?\n/);
+    const tbody = document.getElementById('tbody');
+    tbody.innerHTML = '';
 
-function openLogin(e,p){
-  localStorage.setItem('vsp_email',e);
-  localStorage.setItem('vsp_pass',p);
-  window.open('https://cloud.vsphone.com/login','_blank');
+    for(let i = 1; i < lines.length; i++){
+      const cols = parseCSVLine(lines[i]);
+      if(cols.length < 4) continue;
+
+      const [platform, email, password, status] = cols;
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${platform}</td>
+        <td>${email}</td>
+        <td>${password}</td>
+        <td>${status}</td>
+        <td><button class="btn" onclick="openLogin('${email}','${password}')">LOGIN</button></td>
+      `;
+      tbody.appendChild(tr);
+    }
+  })
+  .catch(err => console.error('CSV LOAD ERROR:', err));
+
+function openLogin(email, password){
+  localStorage.setItem('vsp_email', email);
+  localStorage.setItem('vsp_pass', password);
+  window.open('https://cloud.vsphone.com/login', '_blank');
 }
 </script>
 
 <p class="note" style="margin-top:15px">
-👉 Sau khi trang VSPhone mở, bấm <b>Bookmarklet LOGIN</b>
+Sau khi VSPhone mở → bấm bookmarklet <b>VSPhone AUTO LOGIN</b>
 </p>
 
 </body>
