@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>VSPhone – Account Manager</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#0f172a; color:#e5e7eb; padding:20px }
+    h1 { margin-bottom:10px }
+    table { width:100%; border-collapse:collapse; margin-top:15px }
+    th, td { padding:10px; border-bottom:1px solid #334155; text-align:left }
+    th { background:#1e293b }
+    tr:hover { background:#020617 }
+    .btn { padding:6px 12px; background:#22c55e; color:#022c22; border-radius:6px; text-decoration:none; font-weight:bold; cursor:pointer }
+    .btn:hover { background:#16a34a }
+    .note { font-size:13px; color:#cbd5f5 }
+    .status-ok { color:#22c55e; font-weight:bold }
+    .status-warn { color:#facc15; font-weight:bold }
+  </style>
+</head>
+<body>
+
+<h1>📱 VSPhone – Quản lý tài khoản (AUTO)</h1>
+<p class="note">Acc được <b>tự lấy</b> từ Google Sheet. Bấm LOGIN là đăng nhập ngay.</p>
+
+<table id="accTable">
+  <thead>
+    <tr>
+      <th>Nền tảng</th>
+      <th>Tài khoản</th>
+      <th>Mật khẩu</th>
+      <th>Trạng thái Roblox</th>
+      <th>Hành động</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+<p class="note" style="margin-top:20px">
+⚠️ Lần đầu bấm LOGIN, Chrome có thể hỏi <b>Allow unsafe script</b> → cho phép.<br>
+✔ Không cần cài NodeJS / extension / tool ngoài.
+</p>
+
+<script>
+// 🔧 DÁN LINK CSV GOOGLE SHEET (Publish to web)
+const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSyIS6NTiGHKz7BR5e8PEshKhRJWJcUC9bR8Gp5_WuqfsEGOwRdaARGcR-CwV7Dn_gUYRxcZ12Yb20I/pubhtml';
+
+fetch(SHEET_CSV_URL)
+  .then(r => r.text())
+  .then(text => {
+    const rows = text.split('\n').slice(1);
+    const tbody = document.querySelector('#accTable tbody');
+
+    rows.forEach(r => {
+      if(!r.trim()) return;
+      const [platform,email,pass,status] = r.split(',');
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${platform}</td>
+        <td>${email}</td>
+        <td>${pass}</td>
+        <td class="${status.includes('Lv') ? 'status-ok' : 'status-warn'}">${status}</td>
+        <td><span class="btn" onclick="login('${email}','${pass}')">LOGIN</span></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  });
+
+function login(email, pass){
+  const w = window.open('https://cloud.vsphone.com/login','_blank');
+  const i = setInterval(() => {
+    try{
+      const d = w.document;
+      const e = d.querySelector('input[type=email]');
+      const p = d.querySelector('input[type=password]');
+      const b = d.querySelector('button[type=submit]');
+      if(e && p && b){
+        e.value = email;
+        p.value = pass;
+        e.dispatchEvent(new Event('input',{bubbles:true}));
+        p.dispatchEvent(new Event('input',{bubbles:true}));
+        b.click();
+        clearInterval(i);
+      }
+    }catch{}
+  }, 1000);
+}
+</script>
+
+</body>
+</html>
