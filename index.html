@@ -38,6 +38,9 @@ th {
 .password-cell {
   font-family: monospace;
 }
+.top-actions {
+  margin-bottom: 15px;
+}
 </style>
 </head>
 
@@ -45,6 +48,11 @@ th {
 
 <h2>VSPhone – Quản lý tài khoản</h2>
 <p>Dữ liệu load trực tiếp từ Google Sheets.</p>
+
+<!-- Nút ghim bên ngoài bảng -->
+<div class="top-actions">
+  <button class="btn" onclick="buyVSPhoneTrial()">🛒 MUA VSPhone Trial</button>
+</div>
 
 <table id="accountTable">
   <thead>
@@ -130,6 +138,11 @@ function login(email, pass) {
     newWin.postMessage(creds, targetOrigin);
     console.log('[LOGIN] Credentials sent via postMessage');
   }, 1000);
+}
+
+// Hàm cho nút MUA VSPhone Trial
+function buyVSPhoneTrial() {
+  window.location.href = "https://hoang.cloud";
 }
 
 loadSheet();
