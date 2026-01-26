@@ -61,60 +61,104 @@ th {
 </table>
 
 <script>
-const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSyIS6NTiGHKz7BR5e8PEshKhRJWJcUC9bR8Gp5_WuqfsEGOwRdaARGcR-CwV7Dn_gUYRxcZ12Yb20I/pub?output=csv&gid=0";
+/* =========================
+   LOAD GOOGLE SHEET DATA
+========================= */
 
-function openLogin(email, password) {
-  localStorage.setItem('VS_LOGIN_EMAIL', email.trim());
-  localStorage.setItem('VS_LOGIN_PASS', password);
-  window.open('https://cloud.vsphone.com/', '_blank');
-}
+const SHEET_JSON_URL =
+  'https://opensheet.elk.sh/1fU4ppbOWDikPkEWUdXiyqrUn8JHXvt-PJjS778J-R8M/Sheet1';
 
-function escapeHtml(s) {
-  return String(s || "")
+function escapeHtml(str) {
+  return String(str ?? '')
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 }
 
-function renderTable(rows) {
-  const tbody = document.getElementById("tbody");
-  tbody.innerHTML = "";
-  if (!rows || rows.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" class="error">Không có dữ liệu</td></tr>';
-    return;
-  }
-  rows.forEach(row => {
-    const tr = document.createElement("tr");
-    const platform = escapeHtml(row["Nền tảng"] || "VSPhone");
-    const email = escapeHtml(row["Email"] || "");
-    const password = escapeHtml(row["Password"] || "");
-    const status = escapeHtml(row["Trạng thái"] || "");
+async function loadSheet() {
+  const res = await fetch(SHEET_JSON_URL);
+  const data = await res.json();
+  renderTableFromObjects(data);
+}
+
+function renderTableFromObjects(rows) {
+  const tbody = document.querySelector('#accountTable tbody');
+  tbody.innerHTML = '';
+
+  rows.forEach((row, index) => {
+    const email =
+      row.email ||
+      row.Email ||
+      row.EMAIL ||
+      row.mail ||
+      row.Mail ||
+      row.tài_khoản ||
+      row.taikhoan ||
+      '';
+
+    const password =
+      row.password ||
+      row.pass ||
+      row.Pass ||
+      row.mk ||
+      row.mật_khẩu ||
+      row.mat_khau ||
+      '';
+
+    /* 🔥 DEBUG – BẮT BUỘC GIỮ LẠI */
+    console.log('[DEBUG ROW]', row);
+    console.log('[DEBUG EMAIL]', email);
+    console.log('[DEBUG PASS]', password);
+
+    if (!email || !password) {
+      console.warn('[SKIP] Missing email or password', row);
+      return;
+    }
+
+    /* ❌ TRƯỚC ĐÂY BẠN CHE PASSWORD → KHÓ DEBUG */
+    /* const pwdDots = '•'.repeat(String(password).length); */
+
+    /* ✅ SỬA: HIỂN THỊ PASSWORD THẬT */
+    const pwdText = escapeHtml(password);
+
+    const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${platform}</td>
-      <td>${email}</td>
-      <td>${password}</td>
-      <td>${status}</td>
-      <td><button class="btn">LOGIN</button></td>
+      <td>${index + 1}</td>
+      <td>${escapeHtml(email)}</td>
+      <td class="password-cell">${pwdText}</td>
+      <td>
+        <button class="login-btn"
+          data-email="${escapeHtml(email)}"
+          data-pass="${escapeHtml(password)}">
+          🚀 Login
+        </button>
+      </td>
     `;
-    tr.querySelector(".btn").addEventListener("click", () => openLogin(email, password));
     tbody.appendChild(tr);
+  });
+
+  bindLoginButtons();
+}
+
+function bindLoginButtons() {
+  document.querySelectorAll('.login-btn').forEach(btn => {
+    btn.onclick = () => {
+      const email = btn.dataset.email;
+      const pass = btn.dataset.pass;
+
+      console.log('[SAVE LOGIN]', email, pass);
+
+      localStorage.setItem('VS_LOGIN_EMAIL', email);
+      localStorage.setItem('VS_LOGIN_PASS', pass);
+
+      window.open('https://cloud.vsphone.com/login', '_blank');
+    };
   });
 }
 
-async function loadData() {
-  try {
-    const res = await fetch(CSV_URL);
-    const text = await res.text();
-    const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
-    renderTable(parsed.data);
-  } catch (e) {
-    document.getElementById("tbody").innerHTML =
-      `<tr><td colspan="5" class="error">Lỗi tải CSV: ${escapeHtml(e.message)}</td></tr>`;
-  }
-}
-
-loadData();
+loadSheet();
 </script>
+
 
 </body>
 </html>
