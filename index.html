@@ -1,9 +1,10 @@
+```html
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VSPhone – Quản lý tài khoản</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>VSPhone – Quản lý tài khoản (CSV từ pubhtml)</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
@@ -13,104 +14,34 @@ body {
   padding: 20px;
   min-height: 100vh;
 }
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-}
-h2 {
-  font-size: 28px;
-  margin-bottom: 10px;
-  color: #22c55e;
-}
-.note {
-  font-size: 13px;
-  color: #94a3b8;
-  margin-bottom: 20px;
-}
-.table-wrapper {
-  background: #1e293b;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-}
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-th, td {
-  padding: 12px 16px;
-  text-align: left;
-  border-bottom: 1px solid #334155;
-}
-th {
-  background: #0f172a;
-  color: #22c55e;
-  font-weight: 600;
-  text-transform: uppercase;
-  font-size: 12px;
-  letter-spacing: 0.5px;
-}
-tbody tr {
-  transition: background 0.2s;
-}
-tbody tr:hover {
-  background: #334155;
-}
-.status-active {
-  color: #22c55e;
-  font-weight: 600;
-}
-.status-inactive {
-  color: #ef4444;
-}
-.btn {
-  padding: 8px 16px;
-  background: #22c55e;
-  color: #022c22;
-  border: none;
-  border-radius: 6px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-size: 13px;
-}
-.btn:hover {
-  background: #16a34a;
-  transform: translateY(-1px);
-}
-.btn:active {
-  transform: translateY(0);
-}
-.loading {
-  text-align: center;
-  padding: 40px;
-  color: #94a3b8;
-}
-.error {
-  color: #ef4444;
-  background: #7f1d1d;
-  padding: 12px;
-  border-radius: 8px;
-  margin-top: 20px;
-}
-.password-cell {
-  font-family: 'Courier New', monospace;
-  color: #94a3b8;
-}
-.footer-note {
-  margin-top: 20px;
-  padding: 15px;
-  background: #1e293b;
-  border-radius: 8px;
-  border-left: 4px solid #22c55e;
-}
+.container { max-width: 1200px; margin: 0 auto; }
+h2 { font-size: 28px; margin-bottom: 10px; color: #22c55e; }
+.note { font-size: 13px; color: #94a3b8; margin-bottom: 20px; }
+.table-wrapper { background: #1e293b; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #334155; }
+th { background: #0f172a; color: #22c55e; font-weight: 600; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; }
+tbody tr { transition: background 0.2s; }
+tbody tr:hover { background: #334155; }
+.status-active { color: #22c55e; font-weight: 600; }
+.status-inactive { color: #ef4444; }
+.btn { padding: 8px 16px; background: #22c55e; color: #022c22; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: all 0.2s; font-size: 13px; }
+.btn:hover { background: #16a34a; transform: translateY(-1px); }
+.loading { text-align: center; padding: 40px; color: #94a3b8; }
+.error { color: #ef4444; background: #7f1d1d; padding: 12px; border-radius: 8px; }
+.password-cell { font-family: 'Courier New', monospace; color: #94a3b8; }
+.footer-note { margin-top: 20px; padding: 15px; background: #1e293b; border-radius: 8px; border-left: 4px solid #22c55e; }
+.small { font-size: 12px; color: #94a3b8; }
 </style>
+
+<!-- PapaParse để parse CSV an toàn -->
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
 <body>
 
 <div class="container">
-  <h2>📱 VSPhone – Quản lý tài khoản</h2>
-  <p class="note">Dữ liệu được đồng bộ trực tiếp từ Google Sheet (qua CORS Proxy)</p>
+  <h2>📱 VSPhone – Quản lý tài khoản (CSV từ pubhtml)</h2>
+  <p class="note">Dữ liệu load từ Google Sheets (link publish). Sheet phải được Publish to web và public.</p>
 
   <div class="table-wrapper">
     <table>
@@ -132,99 +63,150 @@ tbody tr:hover {
   </div>
 
   <div class="footer-note">
-    <strong>📌 Hướng dẫn sử dụng:</strong><br>
-    1. Nhấn nút <strong>LOGIN</strong> để mở trang đăng nhập VSPhone<br>
-    2. Tampermonkey script sẽ tự động điền thông tin và đăng nhập<br>
-    3. <span style="color:#fbbf24">⚠️ Lưu ý bảo mật:</span> Thông tin được truyền qua URL parameters
+    <strong>📌 Hướng dẫn nhanh</strong><br>
+    1. Đảm bảo bạn đã Publish to web (File → Publish to web).<br>
+    2. Nếu link pubhtml có nhiều sheet, thêm `&gid=...` vào URL CSV nếu cần.<br>
+    <span style="color:#fbbf24">⚠️ Bảo mật</span> Public sheet = mọi người có link đều xem được. Không lưu dữ liệu nhạy cảm nếu không muốn công khai.
   </div>
 </div>
 
 <script>
-/* ================== CSV CONFIGURATION ================== */
-// Link CSV trực tiếp từ Google Sheets (đã publish)
-const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSyIS6NTiGHKz7BR5e8PEshKhRJWJcUC9bR8Gp5_WuqfsEGOwRdaARGcR-CwV7Dn_gUYRxcZ12Yb20I/pub?output=csv';
+/* ================== CẤU HÌNH ================== */
+/*
+  Bạn đã cung cấp link publish dạng pubhtml:
+  https://docs.google.com/spreadsheets/d/e/2PACX-1vSyIS6NTiGHKz7BR5e8PEshKhRJWJcUC9bR8Gp5_WuqfsEGOwRdaARGcR-CwV7Dn_gUYRxcZ12Yb20I/pubhtml
 
-/* ================== HELPER FUNCTIONS ================== */
-function parseCSVLine(line) {
-  const regex = /(".*?"|[^",]+)(?=\s*,|\s*$)/g;
-  const result = line.match(regex);
-  return result ? result.map(v => v.replace(/^"|"$/g, '').trim()) : [];
-}
+  Để lấy CSV từ link publish, ta dùng endpoint:
+  https://docs.google.com/spreadsheets/d/e/<PUB_ID>/pub?output=csv
+  Nếu cần sheet cụ thể, thêm &gid=GID (ví dụ &gid=0)
+*/
 
+// Thay đổi nếu bạn muốn dùng gid khác
+const PUB_BASE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSyIS6NTiGHKz7BR5e8PEshKhRJWJcUC9bR8Gp5_WuqfsEGOwRdaARGcR-CwV7Dn_gUYRxcZ12Yb20I/pub';
+const GID = '0'; // nếu sheet của bạn có gid khác, thay vào đây
+const CSV_URL = `${PUB_BASE}?output=csv&gid=${GID}`;
+
+/* ================== HÀM HỖ TRỢ ================== */
 function openLogin(email, password) {
-  // Encode credentials và truyền qua URL
   const encodedEmail = encodeURIComponent(email);
   const encodedPass = encodeURIComponent(password);
-  
   const loginUrl = `https://cloud.vsphone.com/login?email=${encodedEmail}&pass=${encodedPass}`;
-  
-  console.log('[VSP Manager] Opening login page with credentials...');
   window.open(loginUrl, '_blank');
 }
 
-/* ================== LOAD CSV DATA ================== */
-fetch(CSV_URL)
-  .then(res => {
-    if (!res.ok) throw new Error('Failed to fetch CSV');
-    return res.text();
-  })
-  .then(text => {
-    // Remove BOM và trim
-    text = text.replace(/\uFEFF/g, '').trim();
-    const lines = text.split(/\r?\n/);
-    const tbody = document.getElementById('tbody');
-    tbody.innerHTML = '';
+function escapeHtml(s) {
+  if (!s && s !== 0) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
-    if (lines.length < 2) {
-      tbody.innerHTML = '<tr><td colspan="5" class="error">⚠️ Không tìm thấy dữ liệu trong Google Sheet</td></tr>';
-      return;
-    }
+/* ================== RENDER BẢNG TỪ MẢNG OBJECT ================== */
+function renderTableFromObjects(rows) {
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
 
-    let accountCount = 0;
-    
-    // Bỏ qua header (dòng 0), bắt đầu từ dòng 1
-    for (let i = 1; i < lines.length; i++) {
-      const cols = parseCSVLine(lines[i]);
-      if (cols.length < 4) continue;
+  if (!rows || rows.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="error">⚠️ Không có dữ liệu</td></tr>';
+    return;
+  }
 
-      const [platform, email, password, status] = cols;
-      
-      // Bỏ qua dòng trống
-      if (!email || !password) continue;
+  // Lấy header keys từ object đầu tiên
+  const headerKeys = Object.keys(rows[0]).map(k => k.trim());
 
-      accountCount++;
-      
-      const statusClass = /active|hoạt/i.test(status) 
-        ? 'status-active' 
-        : 'status-inactive';
+  // Tìm các trường phổ biến (hỗ trợ tiếng Việt/Anh)
+  const keyPlatform = headerKeys.find(k => /platform|nền tảng|nền_tảng/i.test(k)) || headerKeys[0];
+  const keyEmail = headerKeys.find(k => /email/i.test(k));
+  const keyPassword = headerKeys.find(k => /pass(word)?|mật khẩu|mat_khau/i.test(k));
+  const keyStatus = headerKeys.find(k => /status|trạng|trang thai|trạng_thái/i.test(k)) || headerKeys[3] || '';
 
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td><strong>${platform || 'VSPhone'}</strong></td>
-        <td>${email}</td>
-        <td class="password-cell">${'•'.repeat(password.length)}</td>
-        <td class="${statusClass}">${status}</td>
-        <td style="text-align: center;">
-          <button class="btn" onclick="openLogin('${email.replace(/'/g, "\\'")}','${password.replace(/'/g, "\\'")}')">
-            🚀 LOGIN
-          </button>
-        </td>
-      `;
-      tbody.appendChild(tr);
-    }
+  let count = 0;
+  rows.forEach(row => {
+    const platform = row[keyPlatform] ?? 'VSPhone';
+    const email = row[keyEmail] ?? '';
+    const password = row[keyPassword] ?? '';
+    const status = keyStatus ? (row[keyStatus] ?? '') : '';
 
-    if (accountCount === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" class="loading">Không có tài khoản nào trong danh sách</td></tr>';
-    }
+    if (!email || !password) return; // bỏ qua dòng không hợp lệ
+    count++;
 
-    console.log(`[VSP Manager] ✅ Loaded ${accountCount} accounts successfully`);
-  })
-  .catch(err => {
-    console.error('[VSP Manager] CSV LOAD ERROR:', err);
-    document.getElementById('tbody').innerHTML = 
-      `<tr><td colspan="5" class="error">❌ Lỗi tải dữ liệu: ${err.message}<br><small>Kiểm tra link Google Sheet hoặc thử lại sau</small></td></tr>`;
+    const statusClass = /active|hoạt|online|on/i.test(status) ? 'status-active' : 'status-inactive';
+
+    const pEsc = escapeHtml(platform);
+    const eEsc = escapeHtml(email);
+    const sEsc = escapeHtml(status);
+    const pwdDots = '•'.repeat(String(password).length);
+
+    const emailForClick = encodeURIComponent(email);
+    const passForClick = encodeURIComponent(password);
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${pEsc}</strong></td>
+      <td>${eEsc}</td>
+      <td class="password-cell">${pwdDots}</td>
+      <td class="${statusClass}">${sEsc}</td>
+      <td style="text-align: center;">
+        <button class="btn" data-email="${emailForClick}" data-pass="${passForClick}">🚀 LOGIN</button>
+      </td>
+    `;
+    tr.querySelector('.btn').addEventListener('click', function() {
+      const em = decodeURIComponent(this.getAttribute('data-email'));
+      const pw = decodeURIComponent(this.getAttribute('data-pass'));
+      openLogin(em, pw);
+    });
+
+    tbody.appendChild(tr);
   });
+
+  if (count === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="loading">Không có tài khoản hợp lệ</td></tr>';
+  } else {
+    console.log(`[VSP Manager] ✅ Loaded ${count} accounts`);
+  }
+}
+
+/* ================== TẢI CSV VÀ PARSE ================== */
+async function loadDataFromCsv() {
+  try {
+    console.log('[VSP Manager] Fetching CSV...', CSV_URL);
+    const res = await fetch(CSV_URL);
+    if (!res.ok) {
+      // Nếu server trả HTML (ví dụ redirect hoặc thông báo), show body snippet để debug
+      const bodyText = await res.text().catch(() => '');
+      throw new Error(`HTTP ${res.status} ${res.statusText}. Response snippet: ${bodyText.slice(0, 300)}`);
+    }
+    const text = await res.text();
+
+    // Dùng PapaParse để parse CSV an toàn
+    const parsed = Papa.parse(text, {
+      header: true,
+      skipEmptyLines: true,
+      dynamicTyping: false,
+      transformHeader: h => h.trim()
+    });
+
+    if (parsed.errors && parsed.errors.length > 0) {
+      console.warn('[VSP Manager] CSV parse warnings/errors', parsed.errors);
+    }
+
+    const rows = parsed.data; // mảng object
+    renderTableFromObjects(rows);
+
+  } catch (err) {
+    console.error('[VSP Manager] CSV load error', err);
+    document.getElementById('tbody').innerHTML =
+      `<tr><td colspan="5" class="error">❌ Lỗi: ${escapeHtml(err.message)}<br><small>Kiểm tra link publish, đảm bảo sheet đã Publish to web và public</small></td></tr>`;
+  }
+}
+
+/* ================== KHỞI ĐỘNG ================== */
+loadDataFromCsv();
 </script>
 
 </body>
 </html>
+```
