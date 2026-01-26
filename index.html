@@ -87,11 +87,19 @@ const CSV_URL = `${PUB_BASE}?output=csv&gid=${GID}`;
 
 /* ================== HÀM HỖ TRỢ ================== */
 function openLogin(email, password) {
-  localStorage.setItem('VS_LOGIN_EMAIL', email);
+  console.log('[HTML] Save login:', email, password);
+
+  if (!email || !password) {
+    alert('❌ Email hoặc password rỗng – kiểm tra lại Google Sheet');
+    return;
+  }
+
+  localStorage.setItem('VS_LOGIN_EMAIL', email.trim());
   localStorage.setItem('VS_LOGIN_PASS', password);
 
   window.open('https://cloud.vsphone.com/', '_blank');
 }
+
 
 
 function escapeHtml(s) {
