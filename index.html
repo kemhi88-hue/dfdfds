@@ -86,11 +86,28 @@ const GID = '0'; // nếu sheet của bạn có gid khác, thay vào đây
 const CSV_URL = `${PUB_BASE}?output=csv&gid=${GID}`;
 
 /* ================== HÀM HỖ TRỢ ================== */
-function openLogin(email, password) {
-  localStorage.setItem('VS_LOGIN_EMAIL', email);
-  localStorage.setItem('VS_LOGIN_PASS', password);
+function login(email, password) {
 
-  window.open('https://cloud.vsphone.com/', '_blank');
+    const win = window.open('https://cloud.vsphone.com/login', '_blank');
+
+    const send = () => {
+        if (!win || win.closed) return;
+
+        win.postMessage({
+            type: 'AUTO_LOGIN',
+            email,
+            password
+        }, '*');
+
+        console.log('[Manager] Message sent');
+    };
+
+    // gửi nhiều lần để chắc chắn React đã sẵn sàng
+    let count = 0;
+    const timer = setInterval(() => {
+        send();
+        if (++count > 10) clearInterval(timer);
+    }, 700);
 }
 
 
