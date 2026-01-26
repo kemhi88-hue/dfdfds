@@ -1,88 +1,65 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-<meta charset="UTF-8">
-<title>VSPhone Account Manager</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>
-body {
-  background:#0f172a;
-  color:#e5e7eb;
-  font-family:Arial, sans-serif;
-  padding:20px;
-}
-h2 { color:#22c55e; }
-table {
-  width:100%;
-  border-collapse:collapse;
-  background:#1e293b;
-  margin-top:15px;
-}
-th,td {
-  padding:12px;
-  border-bottom:1px solid #334155;
-}
-th {
-  background:#020617;
-  color:#22c55e;
-}
-button {
-  padding:6px 14px;
-  background:#22c55e;
-  border:none;
-  border-radius:6px;
-  font-weight:bold;
-  cursor:pointer;
-}
-button:hover { background:#16a34a; }
-.pass { font-family:monospace; color:#94a3b8; }
-</style>
+  <meta charset="UTF-8">
+  <title>VSPhone Sheet Login</title>
+  <style>
+    body { font-family: Arial; padding: 20px }
+    table { border-collapse: collapse; width: 100% }
+    th, td { border: 1px solid #ccc; padding: 8px }
+    button { padding: 6px 12px; cursor: pointer }
+  </style>
 </head>
-
 <body>
 
-<h2>📱 VSPhone – Quản lý tài khoản</h2>
-<p style="color:#94a3b8;font-size:13px">
-Auto login không truyền email / pass qua URL
-</p>
+<h2>VSPhone Login từ Google Sheet</h2>
 
 <table>
-<thead>
-<tr>
-  <th>Email</th>
-  <th>Password</th>
-  <th>Thao tác</th>
-</tr>
-</thead>
-<tbody>
-
-<tr>
-  <td>test1@gmail.com</td>
-  <td class="pass">••••••••</td>
-  <td><button onclick="login('test1@gmail.com','123456')">LOGIN</button></td>
-</tr>
-
-<tr>
-  <td>test2@gmail.com</td>
-  <td class="pass">••••••••</td>
-  <td><button onclick="login('test2@gmail.com','abc123')">LOGIN</button></td>
-</tr>
-
-</tbody>
+  <thead>
+    <tr>
+      <th>Email</th>
+      <th>Password</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody id="list"></tbody>
 </table>
 
 <script>
-function login(email, password) {
+const SHEET_ID = '1fU4ppbOWDikPkEWUdXiyqrUn8JHXvt-PJjS778J-R8M';
+const SHEET_NAME = 'Sheet1';
 
-    // Ghi credentials vào localStorage (Tampermonkey sẽ đọc)
-    localStorage.setItem('VS_LOGIN_DATA', JSON.stringify({
-        email,
-        password,
-        time: Date.now()
-    }));
+async function loadSheet() {
+  const url = `https://opensheet.elk.sh/${SHEET_ID}/${SHEET_NAME}`;
+  const res = await fetch(url);
+  const data = await res.json();
 
-    window.open('https://cloud.vsphone.com/login', '_blank');
+  const tbody = document.getElementById('list');
+  tbody.innerHTML = '';
+
+  data.forEach(acc => {
+    const tr = document.createElement('tr');
+
+    tr.innerHTML = `
+      <td>${acc.email}</td>
+      <td>${'*'.repeat(acc.password.length)}</td>
+      <td>
+        <button onclick="login('${acc.email}','${acc.password}')">
+          Login
+        </button>
+      </td>
+    `;
+
+    tbody.appendChild(tr);
+  });
 }
+
+function login(email, password) {
+  localStorage.setItem('VSPHONE_LOGIN', JSON.stringify({ email, password }));
+  window.open('https://cloud.vsphone.com/login', '_blank');
+}
+
+loadSheet();
 </script>
 
 </body>
