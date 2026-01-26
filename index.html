@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>VSPhone – Quản lý tài khoản (CSV)</title>
+<title>VSPhone – Quản lý tài khoản</title>
+
 <style>
 body {
   font-family: Arial, sans-serif;
@@ -25,7 +26,7 @@ th {
   background: #eee;
 }
 .btn {
-  padding: 4px 8px;
+  padding: 4px 10px;
   background: #007bff;
   color: #fff;
   border: none;
@@ -34,20 +35,21 @@ th {
 .btn:hover {
   background: #0056b3;
 }
-.error {
-  color: red;
+.password-cell {
+  font-family: monospace;
 }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
+
 <body>
 
 <h2>VSPhone – Quản lý tài khoản</h2>
-<p>Dữ liệu load từ Google Sheets (CSV publish).</p>
+<p>Dữ liệu load trực tiếp từ Google Sheets.</p>
 
-<table>
+<table id="accountTable">
   <thead>
     <tr>
+      <th>#</th>
       <th>Nền tảng</th>
       <th>Email</th>
       <th>Password</th>
@@ -56,7 +58,7 @@ th {
     </tr>
   </thead>
   <tbody id="tbody">
-    <tr><td colspan="5">Đang tải dữ liệu...</td></tr>
+    <tr><td colspan="6">Đang tải dữ liệu...</td></tr>
   </tbody>
 </table>
 
@@ -76,61 +78,63 @@ function escapeHtml(str) {
 }
 
 async function loadSheet() {
-  const res = await fetch(SHEET_JSON_URL);
-  const data = await res.json();
-  renderTableFromObjects(data);
+  try {
+    const res = await fetch(SHEET_JSON_URL);
+    const data = await res.json();
+    renderTable(data);
+  } catch (e) {
+    document.querySelector('#tbody').innerHTML =
+      `<tr><td colspan="6">❌ Lỗi load sheet</td></tr>`;
+    console.error(e);
+  }
 }
 
-function renderTableFromObjects(rows) {
-  const tbody = document.querySelector('#accountTable tbody');
+function renderTable(rows) {
+  const tbody = document.querySelector('#tbody');
   tbody.innerHTML = '';
 
   rows.forEach((row, index) => {
+    const platform =
+      row.platform ||
+      row.nen_tang ||
+      row.Platform ||
+      'VSPhone';
+
     const email =
       row.email ||
       row.Email ||
-      row.EMAIL ||
       row.mail ||
-      row.Mail ||
-      row.tài_khoản ||
-      row.taikhoan ||
+      row.tai_khoan ||
       '';
 
     const password =
       row.password ||
       row.pass ||
-      row.Pass ||
       row.mk ||
-      row.mật_khẩu ||
       row.mat_khau ||
       '';
 
-    /* 🔥 DEBUG – BẮT BUỘC GIỮ LẠI */
-    console.log('[DEBUG ROW]', row);
-    console.log('[DEBUG EMAIL]', email);
-    console.log('[DEBUG PASS]', password);
+    const status =
+      row.status ||
+      row.trang_thai ||
+      'Sẵn sàng';
 
-    if (!email || !password) {
-      console.warn('[SKIP] Missing email or password', row);
-      return;
-    }
+    console.log('[DEBUG]', { email, password });
 
-    /* ❌ TRƯỚC ĐÂY BẠN CHE PASSWORD → KHÓ DEBUG */
-    /* const pwdDots = '•'.repeat(String(password).length); */
-
-    /* ✅ SỬA: HIỂN THỊ PASSWORD THẬT */
-    const pwdText = escapeHtml(password);
+    if (!email || !password) return;
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${index + 1}</td>
+      <td>${escapeHtml(platform)}</td>
       <td>${escapeHtml(email)}</td>
-      <td class="password-cell">${pwdText}</td>
+      <td class="password-cell">${escapeHtml(password)}</td>
+      <td>${escapeHtml(status)}</td>
       <td>
-        <button class="login-btn"
+        <button class="btn login-btn"
           data-email="${escapeHtml(email)}"
           data-pass="${escapeHtml(password)}">
-          🚀 Login
+          Login
         </button>
       </td>
     `;
@@ -142,7 +146,7 @@ function renderTableFromObjects(rows) {
 
 function bindLoginButtons() {
   document.querySelectorAll('.login-btn').forEach(btn => {
-    btn.onclick = () => {
+    btn.addEventListener('click', () => {
       const email = btn.dataset.email;
       const pass = btn.dataset.pass;
 
@@ -152,13 +156,12 @@ function bindLoginButtons() {
       localStorage.setItem('VS_LOGIN_PASS', pass);
 
       window.open('https://cloud.vsphone.com/login', '_blank');
-    };
+    });
   });
 }
 
 loadSheet();
 </script>
-
 
 </body>
 </html>
