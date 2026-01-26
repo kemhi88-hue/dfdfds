@@ -141,10 +141,8 @@ tbody tr:hover {
 
 <script>
 /* ================== CSV CONFIGURATION ================== */
-const ORIGINAL_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSyIS6NTiGHKz7BR5e8PEshKhRJWJcUC9bR8Gp5_WuqfsEGOwRdaARGcR-CwV7Dn_gUYRxcZ12Yb20I/pub?output=csv';
-
-// CORS Proxy để bypass CORS restrictions
-const CSV_URL = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(ORIGINAL_CSV);
+// Link CSV trực tiếp từ Google Sheets (đã publish)
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSyIS6NTiGHKz7BR5e8PEshKhRJWJcUC9bR8Gp5_WuqfsEGOwRdaARGcR-CwV7Dn_gUYRxcZ12Yb20I/pub?output=csv';
 
 /* ================== HELPER FUNCTIONS ================== */
 function parseCSVLine(line) {
