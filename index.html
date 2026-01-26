@@ -62,13 +62,10 @@ th {
   </tbody>
 </table>
 
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <script>
-/* =========================
-   LOAD GOOGLE SHEET DATA
-========================= */
-
-const SHEET_JSON_URL =
-  'https://opensheet.elk.sh/1fU4ppbOWDikPkEWUdXiyqrUn8JHXvt-PJjS778J-R8M/Sheet1';
+const CSV_URL =
+  'https://docs.google.com/spreadsheets/d/e/2PACX-1vSyIS6NTiGHKz7BR5e8PEshKhRJWJcUC9bR8Gp5_WuqfsEGOwRdaARGcR-CwV7Dn_gUYRxcZ12Yb20I/pub?output=csv';
 
 function escapeHtml(str) {
   return String(str ?? '')
@@ -79,89 +76,62 @@ function escapeHtml(str) {
 
 async function loadSheet() {
   try {
-    const res = await fetch(SHEET_JSON_URL);
-    const data = await res.json();
-    renderTable(data);
-  } catch (e) {
-    document.querySelector('#tbody').innerHTML =
+    const res = await fetch(CSV_URL);
+    const csvText = await res.text();
+
+    const parsed = Papa.parse(csvText, {
+      header: true,
+      skipEmptyLines: true
+    });
+
+    console.log('[CSV DATA]', parsed.data);
+    renderTable(parsed.data);
+
+  } catch (err) {
+    console.error(err);
+    document.getElementById('tbody').innerHTML =
       `<tr><td colspan="6">❌ Lỗi load sheet</td></tr>`;
-    console.error(e);
   }
 }
 
 function renderTable(rows) {
-  const tbody = document.querySelector('#tbody');
+  const tbody = document.getElementById('tbody');
   tbody.innerHTML = '';
 
-  rows.forEach((row, index) => {
-    const platform =
-      row.platform ||
-      row.nen_tang ||
-      row.Platform ||
-      'VSPhone';
-
+  rows.forEach((row, i) => {
     const email =
-      row.email ||
-      row.Email ||
-      row.mail ||
-      row.tai_khoan ||
-      '';
+      row.email || row.Email || row.EMAIL || row.mail || row.Mail || '';
 
     const password =
-      row.password ||
-      row.pass ||
-      row.mk ||
-      row.mat_khau ||
-      '';
-
-    const status =
-      row.status ||
-      row.trang_thai ||
-      'Sẵn sàng';
-
-    console.log('[DEBUG]', { email, password });
+      row.password || row.pass || row.Pass || row.mk || row.matkhau || '';
 
     if (!email || !password) return;
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${index + 1}</td>
-      <td>${escapeHtml(platform)}</td>
+      <td>${i + 1}</td>
+      <td>VSPhone</td>
       <td>${escapeHtml(email)}</td>
-      <td class="password-cell">${escapeHtml(password)}</td>
-      <td>${escapeHtml(status)}</td>
+      <td>${escapeHtml(password)}</td>
       <td>
-        <button class="btn login-btn"
-          data-email="${escapeHtml(email)}"
-          data-pass="${escapeHtml(password)}">
-          Login
+        <button class="btn" onclick="login('${email}','${password}')">
+          🚀 Login
         </button>
       </td>
     `;
     tbody.appendChild(tr);
   });
-
-  bindLoginButtons();
 }
 
-function bindLoginButtons() {
-  document.querySelectorAll('.login-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const email = btn.dataset.email;
-      const pass = btn.dataset.pass;
-
-      console.log('[SAVE LOGIN]', email, pass);
-
-      localStorage.setItem('VS_LOGIN_EMAIL', email);
-      localStorage.setItem('VS_LOGIN_PASS', pass);
-
-      window.open('https://cloud.vsphone.com/login', '_blank');
-    });
-  });
+function login(email, pass) {
+  localStorage.setItem('VS_LOGIN_EMAIL', email);
+  localStorage.setItem('VS_LOGIN_PASS', pass);
+  window.open('https://cloud.vsphone.com/login', '_blank');
 }
 
 loadSheet();
 </script>
+
 
 </body>
 </html>
