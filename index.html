@@ -6,7 +6,7 @@
 <title>VSPhone – Quản lý tài khoản (CSV từ pubhtml)</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body {
+body {f
   font-family: 'Segoe UI', Arial, sans-serif;
   background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
   color: #e5e7eb;
@@ -87,11 +87,12 @@ const CSV_URL = `${PUB_BASE}?output=csv&gid=${GID}`;
 
 /* ================== HÀM HỖ TRỢ ================== */
 function openLogin(email, password) {
-  const encodedEmail = encodeURIComponent(email);
-  const encodedPass = encodeURIComponent(password);
-  const loginUrl = `https://cloud.vsphone.com/login?email=${encodedEmail}&pass=${encodedPass}`;
-  window.open(loginUrl, '_blank');
+  localStorage.setItem('VS_LOGIN_EMAIL', email);
+  localStorage.setItem('VS_LOGIN_PASS', password);
+
+  window.open('https://cloud.vsphone.com/', '_blank');
 }
+
 
 function escapeHtml(s) {
   if (!s && s !== 0) return '';
