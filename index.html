@@ -63,68 +63,7 @@ th {
 </table>
 
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-<script>
-const SHEET_JSON_URL =
-  'https://opensheet.elk.sh/1fU4ppbOWDikPkEWUdXiyqrUn8JHXvt-PJjS778J-R8M/Sheet1';
-
-async function loadSheet() {
-  try {
-    const res = await fetch(SHEET_JSON_URL);
-    const data = await res.json();
-
-    console.log('[SHEET DATA]', data);
-
-    if (!Array.isArray(data) || data.length === 0) {
-      document.querySelector('#tbody').innerHTML =
-        '<tr><td colspan="5">❌ Sheet rỗng</td></tr>';
-      return;
-    }
-
-    renderTable(data);
-  } catch (e) {
-    console.error(e);
-    document.querySelector('#tbody').innerHTML =
-      '<tr><td colspan="5">❌ Lỗi load sheet</td></tr>';
-  }
-}
-
-function renderTable(rows) {
-  const tbody = document.querySelector('#tbody');
-  tbody.innerHTML = '';
-
-  rows.forEach((row, i) => {
-    const email = row.email?.trim();
-    const pass = row.password?.trim();
-
-    if (!email || !pass) return;
-
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${row.platform || 'VSPhone'}</td>
-      <td>${email}</td>
-      <td>${pass}</td>
-      <td>${row.status || ''}</td>
-      <td>
-        <button onclick="login('${email}','${pass}')">
-          🚀 LOGIN
-        </button>
-      </td>
-    `;
-    tbody.appendChild(tr);
-  });
-}
-
-function login(email, pass) {
-  console.log('[LOGIN]', email, pass);
-
-  localStorage.setItem('VS_LOGIN_EMAIL', email);
-  localStorage.setItem('VS_LOGIN_PASS', pass);
-
-  window.open('https://cloud.vsphone.com/login', '_blank');
-}
-
-loadSheet();
-</script>
+<script> function login(email, pass) { // Mở tab login const newWin = window.open('https://cloud.vsphone.com/login', '_blank'); // Gửi dữ liệu qua postMessage sau khi tab mở const creds = { type: 'AUTO_LOGIN', email, password: pass }; const targetOrigin = 'https://cloud.vsphone.com'; // Chờ tab load rồi gửi message const sendMessage = () => { newWin.postMessage(creds, targetOrigin); }; // Gửi sau 1 giây (đảm bảo tab đã load) setTimeout(sendMessage, 1000); } </script>
 
 
 
