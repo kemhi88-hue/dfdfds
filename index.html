@@ -1,106 +1,164 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-<meta charset="UTF-8">
-<title>VSPhone – Account Manager</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>VSPhone – Quản lý tài khoản</title>
 
 <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
 body {
-  background:#0f172a;
-  color:#e5e7eb;
-  font-family:Arial, sans-serif;
-  padding:20px;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: linear-gradient(135deg, #0f172a, #1e293b);
+  color: #e5e7eb;
+  padding: 20px;
 }
-h2 { color:#22c55e; margin-bottom:10px; }
-table {
-  width:100%;
-  border-collapse:collapse;
-  background:#1e293b;
-  border-radius:10px;
-  overflow:hidden;
+.container { max-width: 1200px; margin: auto; }
+h2 { color: #22c55e; margin-bottom: 10px; }
+.note { font-size: 13px; color: #94a3b8; margin-bottom: 20px; }
+.table-wrapper {
+  background: #1e293b;
+  border-radius: 12px;
+  overflow: hidden;
 }
-th,td {
-  padding:12px;
-  border-bottom:1px solid #334155;
+table { width: 100%; border-collapse: collapse; }
+th, td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #334155;
 }
 th {
-  background:#020617;
-  color:#22c55e;
-  font-size:13px;
+  background: #0f172a;
+  color: #22c55e;
+  font-size: 12px;
+  text-transform: uppercase;
 }
-button {
-  padding:6px 14px;
-  border:none;
-  border-radius:6px;
-  background:#22c55e;
-  font-weight:bold;
-  cursor:pointer;
+tbody tr:hover { background: #334155; }
+.status-active { color: #22c55e; font-weight: bold; }
+.status-inactive { color: #ef4444; }
+.btn {
+  padding: 8px 14px;
+  background: #22c55e;
+  color: #022c22;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
 }
-button:hover { background:#16a34a; }
-.pass { font-family:monospace; color:#94a3b8; }
+.btn:hover { background: #16a34a; }
+.loading { text-align: center; color: #94a3b8; padding: 30px; }
+.error {
+  color: #fecaca;
+  background: #7f1d1d;
+  padding: 12px;
+  border-radius: 8px;
+}
+.password-cell {
+  font-family: monospace;
+  color: #94a3b8;
+}
 </style>
+
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
 
 <body>
+<div class="container">
+  <h2>📱 VSPhone – Quản lý tài khoản</h2>
+  <p class="note">Dữ liệu load từ Google Sheets (Publish to web)</p>
 
-<h2>📱 VSPhone – Quản lý tài khoản</h2>
-<p style="color:#94a3b8;font-size:13px">
-Không truyền email/pass qua URL – dùng postMessage an toàn
-</p>
-
-<table>
-<thead>
-<tr>
-  <th>Email</th>
-  <th>Password</th>
-  <th>Thao tác</th>
-</tr>
-</thead>
-<tbody>
-
-<tr>
-  <td>test1@gmail.com</td>
-  <td class="pass">••••••••</td>
-  <td><button onclick="login('test1@gmail.com','123456')">LOGIN</button></td>
-</tr>
-
-<tr>
-  <td>test2@gmail.com</td>
-  <td class="pass">••••••••</td>
-  <td><button onclick="login('test2@gmail.com','abc123')">LOGIN</button></td>
-</tr>
-
-</tbody>
-</table>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>Nền tảng</th>
+          <th>Email</th>
+          <th>Password</th>
+          <th>Trạng thái</th>
+          <th style="text-align:center">Thao tác</th>
+        </tr>
+      </thead>
+      <tbody id="tbody">
+        <tr><td colspan="5" class="loading">⏳ Đang tải dữ liệu...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
 
 <script>
-function login(email, password) {
+/* ================= CONFIG ================= */
+const CSV_URL =
+'https://docs.google.com/spreadsheets/d/e/2PACX-1vSyIS6NTiGHKz7BR5e8PEshKhRJWJcUC9bR8Gp5_WuqfsEGOwRdaARGcR-CwV7Dn_gUYRxcZ12Yb20I/pub?output=csv&gid=0';
 
-    const win = window.open(
-        'https://cloud.vsphone.com/login',
-        '_blank'
-    );
+/* ================= LOGIN ================= */
+function openLogin(email, password) {
+  // lưu cho userscript
+  localStorage.setItem('VS_LOGIN_EMAIL', email);
+  localStorage.setItem('VS_LOGIN_PASS', password);
+  localStorage.setItem('VS_LOGIN_TIME', Date.now());
 
-    const timer = setInterval(() => {
-        if (!win || win.closed) {
-            clearInterval(timer);
-            return;
-        }
-
-        try {
-            win.postMessage({
-                type: 'AUTO_LOGIN',
-                email,
-                password
-            }, 'https://cloud.vsphone.com');
-
-            clearInterval(timer);
-            console.log('[Manager] Sent login data');
-        } catch (e) {}
-    }, 500);
+  // mở trang chính VSPhone
+  window.open('https://cloud.vsphone.com/', '_blank');
 }
-</script>
 
+/* ================= UTIL ================= */
+function esc(s) {
+  return String(s ?? '')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+/* ================= RENDER ================= */
+function render(rows) {
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="error">Không có dữ liệu</td></tr>';
+    return;
+  }
+
+  const keys = Object.keys(rows[0]);
+  const kPlatform = keys.find(k => /platform|nền/i.test(k)) || keys[0];
+  const kEmail = keys.find(k => /email/i.test(k));
+  const kPass = keys.find(k => /pass|mật/i.test(k));
+  const kStatus = keys.find(k => /status|trạng/i.test(k));
+
+  rows.forEach(r => {
+    if (!r[kEmail] || !r[kPass]) return;
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><b>${esc(r[kPlatform])}</b></td>
+      <td>${esc(r[kEmail])}</td>
+      <td class="password-cell">${'•'.repeat(r[kPass].length)}</td>
+      <td class="${/on|active|hoạt/i.test(r[kStatus]) ? 'status-active':'status-inactive'}">
+        ${esc(r[kStatus] || '')}
+      </td>
+      <td style="text-align:center">
+        <button class="btn">🚀 LOGIN</button>
+      </td>
+    `;
+    tr.querySelector('button').onclick = () =>
+      openLogin(r[kEmail], r[kPass]);
+
+    tbody.appendChild(tr);
+  });
+}
+
+/* ================= LOAD CSV ================= */
+fetch(CSV_URL)
+  .then(r => r.text())
+  .then(t => {
+    const p = Papa.parse(t, { header:true, skipEmptyLines:true });
+    render(p.data);
+  })
+  .catch(e => {
+    document.getElementById('tbody').innerHTML =
+      `<tr><td colspan="5" class="error">Lỗi load CSV</td></tr>`;
+    console.error(e);
+  });
+</script>
 </body>
 </html>
