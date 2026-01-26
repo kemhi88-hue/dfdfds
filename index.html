@@ -1,114 +1,89 @@
-// ==UserScript==
-// @name         VSPhone Auto Login (GM Bridge – Stable)
-// @namespace    vsphone-autologin-bridge
-// @version      2.0.0
-// @match        https://cloud.vsphone.com/*
-// @run-at       document-end
-// ==/UserScript==
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>VSPhone Account Manager</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body {
+  background:#0f172a;
+  color:#e5e7eb;
+  font-family:Arial, sans-serif;
+  padding:20px;
+}
+h2 { color:#22c55e; }
+table {
+  width:100%;
+  border-collapse:collapse;
+  background:#1e293b;
+  margin-top:15px;
+}
+th,td {
+  padding:12px;
+  border-bottom:1px solid #334155;
+}
+th {
+  background:#020617;
+  color:#22c55e;
+}
+button {
+  padding:6px 14px;
+  background:#22c55e;
+  border:none;
+  border-radius:6px;
+  font-weight:bold;
+  cursor:pointer;
+}
+button:hover { background:#16a34a; }
+.pass { font-family:monospace; color:#94a3b8; }
+</style>
+</head>
 
-(function () {
-    'use strict';
+<body>
 
-    console.log('[AutoLogin] Script loaded');
+<h2>📱 VSPhone – Quản lý tài khoản</h2>
+<p style="color:#94a3b8;font-size:13px">
+Auto login không truyền email / pass qua URL
+</p>
 
-    const STORAGE_KEY = 'VS_LOGIN_DATA';
-    let creds = null;
+<table>
+<thead>
+<tr>
+  <th>Email</th>
+  <th>Password</th>
+  <th>Thao tác</th>
+</tr>
+</thead>
+<tbody>
 
-    function loadCreds() {
-        try {
-            const raw = localStorage.getItem(STORAGE_KEY);
-            if (!raw) return null;
+<tr>
+  <td>test1@gmail.com</td>
+  <td class="pass">••••••••</td>
+  <td><button onclick="login('test1@gmail.com','123456')">LOGIN</button></td>
+</tr>
 
-            const data = JSON.parse(raw);
-            if (!data.email || !data.password) return null;
+<tr>
+  <td>test2@gmail.com</td>
+  <td class="pass">••••••••</td>
+  <td><button onclick="login('test2@gmail.com','abc123')">LOGIN</button></td>
+</tr>
 
-            // Chỉ dùng trong 2 phút
-            if (Date.now() - data.time > 120000) {
-                localStorage.removeItem(STORAGE_KEY);
-                return null;
-            }
+</tbody>
+</table>
 
-            return data;
-        } catch {
-            return null;
-        }
-    }
+<script>
+function login(email, password) {
 
-    function visible(el) {
-        return el && el.offsetParent !== null;
-    }
+    // Ghi credentials vào localStorage (Tampermonkey sẽ đọc)
+    localStorage.setItem('VS_LOGIN_DATA', JSON.stringify({
+        email,
+        password,
+        time: Date.now()
+    }));
 
-    // === FIX CHO REACT INPUT ===
-    function reactFill(input, value) {
-        const setter = Object.getOwnPropertyDescriptor(
-            window.HTMLInputElement.prototype,
-            'value'
-        ).set;
+    window.open('https://cloud.vsphone.com/login', '_blank');
+}
+</script>
 
-        setter.call(input, value);
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-        input.dispatchEvent(new Event('change', { bubbles: true }));
-    }
-
-    function findInputs() {
-        const inputs = [...document.querySelectorAll('input')]
-            .filter(i => visible(i));
-
-        const pass = inputs.find(i => i.type === 'password');
-        if (!pass) return {};
-
-        const user =
-            inputs.find(i => i.type === 'email') ||
-            inputs.find(i => /email|user|login/i.test(i.name || '')) ||
-            inputs.find(i => i !== pass);
-
-        return { user, pass };
-    }
-
-    function findLoginButton(pass) {
-        return (
-            [...document.querySelectorAll('button,input[type=submit]')]
-                .find(b =>
-                    visible(b) &&
-                    /(login|sign in|đăng nhập)/i.test(
-                        b.innerText || b.value || ''
-                    )
-                ) ||
-            pass?.form?.querySelector('button,input[type=submit]')
-        );
-    }
-
-    function tryLogin() {
-        const timer = setInterval(() => {
-            if (!creds) return;
-
-            const { user, pass } = findInputs();
-            if (!user || !pass) return;
-
-            const btn = findLoginButton(pass);
-            if (!btn) return;
-
-            clearInterval(timer);
-
-            console.log('[AutoLogin] Filling form');
-
-            reactFill(user, creds.email);
-            reactFill(pass, creds.password);
-
-            setTimeout(() => {
-                console.log('[AutoLogin] Submit');
-                btn.click();
-                localStorage.removeItem(STORAGE_KEY);
-            }, 600);
-
-        }, 300);
-    }
-
-    // ===== START =====
-    creds = loadCreds();
-    if (creds) {
-        console.log('[AutoLogin] Credentials loaded');
-        tryLogin();
-    }
-
-})();
+</body>
+</html>
