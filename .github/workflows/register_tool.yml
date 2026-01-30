@@ -1,4 +1,5 @@
-name: VSPhone Auto Register Worker
+name: VSPhone Auto Register AI Worker
+
 on:
   repository_dispatch:
     types: [run-tool]
@@ -6,6 +7,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -14,15 +16,32 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
+          cache: 'pip'
 
-      - name: Install dependencies
-        run: |
-          pip install playwright playwright-stealth
-          playwright install chromium --with-deps
+      - name: Cache Playwright Browsers
+        id: cache-playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-browsers-${{ runner.os }}
 
-      - name: Run Registration Script
+      - name: Install System Dependencies
+        # Sửa lỗi 'no installation candidate' bằng cách dùng thư viện chuẩn mới nhất
         run: |
-          python register.py ${{ github.event.client_payload.email }} ${{ github.event.client_payload.password }} ${{ github.event.client_payload.ref }}
+          sudo apt-get update
+          sudo apt-get install -y libgl1 libegl1 libxrender1 libxext6 libglib2.0-0
+
+      - name: Install Python Libraries
+        run: |
+          pip install playwright playwright-stealth requests opencv-python-headless numpy
+          # Lưu ý: Dùng opencv-python-headless sẽ nhẹ hơn và tránh lỗi hiển thị trên server
+          if [ "${{ steps.cache-playwright.outputs.cache-hit }}" != "true" ]; then
+            playwright install chromium --with-deps
+          fi
+
+      - name: Run Registration Script with AI
+        run: |
+          python register.py ${{ github.event.client_payload.ref }}
 
       - name: Upload Result Screenshot
         if: always()
@@ -30,3 +49,4 @@ jobs:
         with:
           name: registration-result
           path: ketqua.png
+          if-no-files-found: warn
