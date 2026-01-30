@@ -1,8 +1,6 @@
 import asyncio
 import sys
 from playwright.async_api import async_playwright
-# Cách import trực tiếp để tránh lỗi 'module has no attribute'
-from playwright_stealth import stealth_async
 
 async def main():
     if len(sys.argv) < 4:
@@ -18,28 +16,38 @@ async def main():
         context = await browser.new_context()
         page = await context.new_page()
         
-        # Thử thực hiện stealth, nếu vẫn lỗi thì bỏ qua để chạy tiếp
+        # Cách gọi stealth an toàn: Thử từng hàm một
         try:
-            await stealth_async(page)
+            import playwright_stealth
+            # Thử hàm stealth_async, nếu không có thì thử hàm stealth
+            if hasattr(playwright_stealth, 'stealth_async'):
+                await playwright_stealth.stealth_async(page)
+            elif hasattr(playwright_stealth, 'stealth'):
+                await playwright_stealth.stealth(page)
         except Exception as e:
-            print(f"Lưu ý: Không thể kích hoạt stealth ({e}), vẫn tiếp tục chạy...")
+            print(f"Bỏ qua bước Stealth do lỗi thư viện: {e}")
 
         print(f"--- Đang mở trang đăng ký cho: {email} ---")
         try:
-            # Truy cập trang web
+            # Truy cập trang web với thời gian chờ 60 giây
             await page.goto(f"https://cloud.vsphone.com/register?code={ref_code}", timeout=60000)
 
-            # Chờ ô nhập liệu (tăng thời gian chờ lên 20s cho chắc chắn)
-            await page.wait_for_selector('input[placeholder*="email"]', timeout=20000)
-            await page.fill('input[placeholder*="email"]', email)
-            await page.fill('input[placeholder*="password"]', password)
+            # Đợi ô nhập liệu xuất hiện (sử dụng selector linh hoạt hơn)
+            await page.wait_for_selector('input', timeout=20000)
+            
+            # Tìm và điền thông tin dựa trên placeholder hoặc type
+            inputs = await page.query_selector_all('input')
+            for i in inputs:
+                placeholder = await i.get_attribute('placeholder')
+                if placeholder and 'email' in placeholder.lower():
+                    await i.fill(email)
+                if placeholder and 'password' in placeholder.lower():
+                    await i.fill(password)
             
             print("--- Đã điền xong form thành công! ---")
             
         except Exception as e:
-            print(f"Dừng lại tại bước nhập liệu: {e}")
-            # Chụp ảnh màn hình lỗi để bạn tự xem web đang hiện gì
-            await page.screenshot(path="error_screen.png")
+            print(f"Dừng lại tại bước thao tác: {e}")
         
         await browser.close()
 
