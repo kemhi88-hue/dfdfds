@@ -4,12 +4,11 @@ import requests
 import base64
 import time
 from playwright.async_api import async_playwright
-from playwright_stealth import stealth_async  # Import trực tiếp hàm async
+import playwright_stealth # Import module thay vì import hàm lẻ
 
 # --- HÀM GIẢI CAPTCHA ---
 def solve_tiktok_captcha(image_path):
     try:
-        # Lấy URL server giải captcha từ host uy tín
         host_res = requests.get("https://raw.githubusercontent.com/dacohacotool/host_kk/refs/heads/main/url_serverkey.txt")
         host = host_res.text.strip()
         
@@ -25,25 +24,22 @@ def solve_tiktok_captcha(image_path):
 
 # --- LUỒNG CHÍNH ---
 async def main():
-    # Nhận mã Ref từ tham số dòng lệnh hoặc mặc định
     ref = sys.argv[1] if len(sys.argv) > 1 else "vsagwtjq63"
     
     async with async_playwright() as p:
-        # Chạy ở chế độ không giao diện (headless) trên GitHub Actions
         browser = await p.chromium.launch(headless=True)
-        # Giả lập thiết bị iPhone 12 để tránh bị soi
         context = await browser.new_context(**p.devices['iPhone 12'])
         page = await context.new_page()
         
-        # Áp dụng Stealth để chống phát hiện bot
-        await stealth_async(page)
+        # SỬA LỖI TẠI ĐÂY: Sử dụng hàm stealth() thay vì stealth_async()
+        # Thư viện playwright-stealth bản mới nhất dùng chung hàm này cho async page
+        await playwright_stealth.stealth(page)
         
         try:
             print(f"🚀 Đang khởi chạy đăng ký với mã Ref: {ref}")
             await page.goto(f"https://www.vsphone.com/invite/{ref}")
             await asyncio.sleep(5)
 
-            # Điền Mail ngẫu nhiên theo định dạng vsp_timestamp@gmail.com
             email_random = f"vsp_{int(time.time())}@gmail.com"
             await page.locator('input[type="text"]').first.fill(email_random)
             print(f"📩 Đã nhập email: {email_random}")
@@ -51,7 +47,6 @@ async def main():
             await page.get_by_text("Get code").click()
             await asyncio.sleep(4)
 
-            # Kiểm tra và xử lý Captcha trượt
             captcha_img = page.locator(".captcha-main-img").first
             if await captcha_img.is_visible():
                 print("🧩 Phát hiện Captcha, đang xử lý...")
@@ -67,15 +62,11 @@ async def main():
                         sx, sy = box['x'] + box['width']/2, box['y'] + box['height']/2
                         await page.mouse.move(sx, sy)
                         await page.mouse.down()
-                        # Di chuyển chuột mượt mô phỏng người thật
                         await page.mouse.move(sx + dist, sy, steps=35)
                         await asyncio.sleep(0.5)
                         await page.mouse.up()
                         print("✅ Đã thực hiện trượt Captcha")
-                else:
-                    print("❌ Không lấy được tọa độ giải Captcha")
 
-            # Chụp ảnh kết quả cuối cùng để debug
             await asyncio.sleep(5)
             await page.screenshot(path="ketqua.png")
             print("📸 Đã lưu ảnh kết quả (ketqua.png)")
