@@ -17,8 +17,10 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt
-          playwright install chromium
+          # Cài đặt các thư viện xử lý ảnh và trình duyệt
+          pip install playwright playwright-stealth opencv-python-headless numpy Pillow
+          # Cài đặt trình duyệt kèm theo các thư viện hệ thống (Linux)
+          playwright install chromium --with-deps
 
       - name: Run Registration Script
         run: |
