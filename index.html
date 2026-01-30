@@ -5,19 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>VSPhone – Quản lý & Tự động hóa</title>
     <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; background: #f4f7f9; color: #333; padding: 20px; line-height: 1.6; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #f4f7f9; color: #333; padding: 20px; }
         .container { max-width: 1000px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         h2 { color: #007bff; border-bottom: 2px solid #007bff; padding-bottom: 10px; }
+        
+        /* Khu vực nhập Token màu vàng để nổi bật */
+        .token-box { background: #fff3cd; padding: 15px; border: 1px solid #ffeeba; border-radius: 5px; margin-bottom: 20px; }
         .config-box { background: #e9ecef; padding: 15px; border-radius: 5px; margin-bottom: 20px; border-left: 5px solid #28a745; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: #fff; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th, td { border: 1px solid #dee2e6; padding: 12px; text-align: left; }
-        th { background: #f8f9fa; font-weight: bold; }
-        .btn { padding: 8px 15px; background: #007bff; color: #fff; border: none; border-radius: 4px; cursor: pointer; transition: 0.3s; }
-        .btn:hover { background: #0056b3; }
-        .btn-run { background: #28a745; font-weight: bold; }
-        .btn-run:hover { background: #218838; }
-        input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; margin-right: 5px; width: 200px; }
-        .password-cell { font-family: monospace; color: #d63384; }
+        th { background: #f8f9fa; }
+        
+        .btn { padding: 8px 15px; background: #007bff; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+        .btn-run { background: #28a745; font-weight: bold; width: 100%; margin-top: 10px; }
+        
+        input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 5px; }
+        .input-group { display: flex; flex-direction: column; gap: 5px; max-width: 300px; }
     </style>
 </head>
 <body>
@@ -25,58 +29,47 @@
 <div class="container">
     <h2>VSPhone – Bảng điều khiển</h2>
 
-    <div class="config-box">
-        <h3>🚀 Đăng ký Ref tự động</h3>
-        <p style="font-size: 0.9em; color: #666;">Nhập thông tin acc mới để máy ảo GitHub thực hiện đăng ký:</p>
-        <input type="text" id="reg_email" placeholder="Email mới">
-        <input type="text" id="reg_pass" placeholder="Mật khẩu">
-        <input type="text" id="reg_ref" placeholder="Mã mời (Ref)" value="NHẬP_MÃ_MỜI">
-        <button class="btn btn-run" onclick="startAutoRegister()">CHẠY TOOL NGAY</button>
+    <div class="token-box">
+        <strong>🔑 Bước 1: Xác thực GitHub</strong><br>
+        <p style="font-size: 0.85em; margin: 5px 0;">Dán Personal Access Token (classic) có quyền 'repo' và 'workflow' vào đây.</p>
+        <input type="password" id="gh_token_ui" placeholder="ghp_xxxxxxxxxxxx" style="width: 100%; max-width: 500px;">
     </div>
 
-    <div class="top-actions">
-        <button class="btn" onclick="window.location.href='https://hoang.cloud'">🛒 MUA VSPhone Trial</button>
+    <div class="config-box">
+        <strong>🚀 Bước 2: Đăng ký Ref tự động</strong>
+        <div class="input-group" style="margin-top:10px;">
+            <input type="text" id="reg_email" placeholder="Email đăng ký mới">
+            <input type="text" id="reg_pass" placeholder="Mật khẩu mong muốn">
+            <input type="text" id="reg_ref" placeholder="Mã mời (Ref Code)" value="NHẬP_MÃ_TẠI_ĐÂY">
+            <button class="btn btn-run" onclick="startAutoRegister()">KÍCH HOẠT MÁY ẢO CHẠY TOOL</button>
+        </div>
     </div>
 
     <table id="accountTable">
         <thead>
             <tr>
                 <th>#</th>
-                <th>Nền tảng</th>
                 <th>Email</th>
                 <th>Password</th>
                 <th>Trạng thái</th>
-                <th>Thao tác</th>
             </tr>
         </thead>
         <tbody id="tbody">
-            <tr><td colspan="6">Đang tải dữ liệu từ Sheets...</td></tr>
+            <tr><td colspan="4">Đang tải dữ liệu...</td></tr>
         </tbody>
     </table>
 </div>
 
 <script>
-// --- CẤU HÌNH LÁCH GITHUB (CHIA TOKEN LÀM 2 PHẦN) ---
-// Ví dụ token của bạn là ghp_ABC123XYZ
-// Bạn hãy cắt nó ra làm 2 đoạn bất kỳ
-const p1 = "ghp_uNMwlKU24Hg1IXL"; // Đoạn 1 (Có chứa ghp_)
-const p2 = "LWonoamFqTsAEIr4C1u3s";      // Đoạn 2 (Phần còn lại)
-
-const SHEET_URL = 'https://opensheet.elk.sh/1fU4ppbOWDikPkEWUdXiyqrUn8JHXvt-PJjS778J-R8M/Trang%20t%C3%ADnh1';
-
-// Hàm kích hoạt Tool trên GitHub Actions
 async function startAutoRegister() {
-    const email = document.getElementById('reg_email').value;
-    const password = document.getElementById('reg_pass').value;
-    const ref = document.getElementById('reg_ref').value;
+    const token = document.getElementById('gh_token_ui').value.trim();
+    const email = document.getElementById('reg_email').value.trim();
+    const password = document.getElementById('reg_pass').value.trim();
+    const ref = document.getElementById('reg_ref').value.trim();
 
-    if (!email || !password) {
-        alert("Vui lòng nhập đủ Email và Pass!");
-        return;
-    }
+    if (!token) { return alert("Vui lòng nhập GitHub Token!"); }
+    if (!email || !password) { return alert("Vui lòng nhập Email và Password!"); }
 
-    // Ghép Token lại để sử dụng
-    const GITHUB_TOKEN = p1 + p2; 
     const OWNER = "kemhi88-hue";
     const REPO = "dfdfds";
 
@@ -84,7 +77,7 @@ async function startAutoRegister() {
         const response = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/dispatches`, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${GITHUB_TOKEN}`,
+                'Authorization': `Bearer ${token}`,
                 'Accept': 'application/vnd.github.v3+json',
                 'Content-Type': 'application/json'
             },
@@ -95,41 +88,31 @@ async function startAutoRegister() {
         });
 
         if (response.status === 204) {
-            alert("🚀 Lệnh đã gửi! Tool đang khởi động trên GitHub Actions (mất khoảng 1-2 phút).");
+            alert("✅ Lệnh gửi thành công! Hãy kiểm tra tab Actions trên GitHub.");
         } else {
-            alert("❌ Lỗi: " + response.status + ". Token có thể đã bị xóa hoặc sai Repo.");
+            const err = await response.json();
+            alert("❌ Lỗi " + response.status + ": " + err.message);
         }
     } catch (e) {
-        alert("❌ Lỗi kết nối API GitHub!");
+        alert("❌ Lỗi kết nối API!");
     }
 }
 
-// Hàm load dữ liệu từ Google Sheets (Giữ nguyên của bạn)
+// Giữ nguyên hàm loadSheet của bạn để hiện bảng
 async function loadSheet() {
+    const SHEET_URL = 'https://opensheet.elk.sh/1fU4ppbOWDikPkEWUdXiyqrUn8JHXvt-PJjS778J-R8M/Trang%20t%C3%ADnh1';
     try {
         const res = await fetch(SHEET_URL);
         const data = await res.json();
         const tbody = document.querySelector('#tbody');
         tbody.innerHTML = '';
-
         data.forEach((row, i) => {
-            if (!row.email) return;
             const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${i + 1}</td>
-                <td>${row.platform || 'VSPhone'}</td>
-                <td>${row.email}</td>
-                <td class="password-cell">${row.password}</td>
-                <td>${row.status || 'Sẵn sàng'}</td>
-                <td><button class="btn" onclick="alert('Chức năng Login đang bảo trì')">🚀 LOGIN</button></td>
-            `;
+            tr.innerHTML = `<td>${i+1}</td><td>${row.email}</td><td>${row.password}</td><td>${row.status || 'Sẵn sàng'}</td>`;
             tbody.appendChild(tr);
         });
-    } catch (e) {
-        document.querySelector('#tbody').innerHTML = '<tr><td colspan="6">❌ Lỗi load sheet</td></tr>';
-    }
+    } catch (e) { console.error(e); }
 }
-
 loadSheet();
 </script>
 </body>
