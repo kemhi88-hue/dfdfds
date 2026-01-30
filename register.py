@@ -3,12 +3,11 @@ import sys
 import re
 import requests
 import time
-import cv2
-import numpy as np
 import os
+import ddddocr # Thư viện AI chuyên dụng
 from playwright.async_api import async_playwright
 
-# --- HÀM EMAIL ---
+# --- HÀM EMAIL (Giữ nguyên) ---
 def create_temp_email():
     try:
         domain_res = requests.get("https://api.mail.tm/domains").json()
@@ -35,33 +34,31 @@ def get_otp_from_mail_tm(token):
         except: pass
     return None
 
-# --- AI XỬ LÝ CAPTCHA ---
-async def get_puzzle_distance(page):
+# --- AI GIẢI CAPTCHA (Dùng Deep Learning) ---
+async def get_distance_with_ai(page):
     try:
-        await page.wait_for_selector(".captcha-main-img, .van-image__img", timeout=10000)
-        bg_selectors = [".captcha-main-img", ".van-image__img", "img[src*='captcha']"]
-        slice_selectors = [".captcha-slice-img", ".page-slide-img", "[class*='slice-img']"]
-        
+        await page.wait_for_selector(".captcha-main-img", timeout=10000)
         bg_path, slice_path = "bg.png", "slice.png"
-        bg_el = None
-        for s in bg_selectors:
-            if await page.locator(s).count() > 0:
-                bg_el = page.locator(s).first
-                break
-        if not bg_el: return 180
-        await bg_el.screenshot(path=bg_path)
         
-        for s in slice_selectors:
-            if await page.locator(s).count() > 0:
-                await page.locator(s).first.screenshot(path=slice_path)
-                break
+        # Chụp ảnh Captcha
+        await page.locator(".captcha-main-img").first.screenshot(path=bg_path)
+        await page.locator(".captcha-slice-img").first.screenshot(path=slice_path)
+
+        # Khởi tạo AI ddddocr
+        det = ddddocr.DdddOcr(det=False, show_ad=False)
         
-        img_rgb = cv2.imread(bg_path)
-        img_gray = cv2.cvtColor(img_rgb, cv2.COLOR_BGR2GRAY)
-        template = cv2.imread(slice_path, 0)
-        res = cv2.matchTemplate(img_gray, template, cv2.TM_CCOEFF_NORMED)
-        _, _, _, max_loc = cv2.minMaxLoc(res)
-        return max_loc[0]
+        with open(slice_path, 'rb') as f:
+            target_bytes = f.read()
+        with open(bg_path, 'rb') as f:
+            background_bytes = f.read()
+            
+        # AI thực hiện khớp lệnh (slide_match)
+        res = det.slide_match(target_bytes, background_bytes, simple_target=True)
+        
+        # res['target'][0] chính là tọa độ X cần kéo đến
+        distance = res['target'][0]
+        print(f"--- AI nhận diện khoảng cách: {distance}px ---")
+        return distance
     except Exception as e:
         print(f"AI Error: {e}")
         return 180
@@ -70,57 +67,58 @@ async def get_puzzle_distance(page):
 async def main():
     ref_code = sys.argv[1] if len(sys.argv) > 1 else "vsagwtjq63"
     email, mail_token = create_temp_email()
-    with open("ketqua.png", "w") as f: f.write("") 
-
+    
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         
-        # FIX LỖI MULTIPLE VALUES CHO VIEWPORT
-        iphone_config = p.devices['iPhone 13']
-        context_params = {k: v for k, v in iphone_config.items() if k != 'viewport'}
-        
+        # Cấu hình iPhone 13 và fix Viewport để AI làm việc chuẩn nhất
+        iphone = p.devices['iPhone 13']
         context = await browser.new_context(
-            **context_params,
+            **{k: v for k, v in iphone.items() if k != 'viewport'},
             viewport={'width': 1280, 'height': 720}
         )
         
         page = await context.new_page()
         
         try:
-            print(f"--- Truy cập: {ref_code} ---")
+            print(f"--- Đang truy cập mã mời: {ref_code} ---")
             await page.goto(f"https://www.vsphone.com/invite/{ref_code}", timeout=60000)
             await asyncio.sleep(5)
 
+            # Điền Email
             inputs = page.locator('input')
-            if await inputs.count() > 0:
-                await inputs.nth(0).fill(email)
-                await page.get_by_text("Get code").click()
-                await asyncio.sleep(3)
-                
-                distance = await get_puzzle_distance(page)
-                slider = page.locator(".van-slider__button, .page-slide-btn").first
-                
-                if await slider.count() > 0:
-                    box = await slider.bounding_box()
-                    start_x, start_y = box['x'] + box['width']/2, box['y'] + box['height']/2
-                    await page.mouse.move(start_x, start_y)
-                    await page.mouse.down()
-                    # Kéo mượt với steps=30
-                    await page.mouse.move(start_x + distance, start_y, steps=30)
-                    await asyncio.sleep(0.5)
-                    await page.mouse.up()
-                    print(f"--- Đã kéo {distance}px ---")
-                    await asyncio.sleep(2)
+            await inputs.nth(0).fill(email)
+            await page.get_by_text("Get code").click()
+            await asyncio.sleep(3)
             
+            # --- DÙNG AI ĐỂ GIẢI ---
+            distance = await get_distance_with_ai(page)
+            
+            slider = page.locator(".van-slider__button, .page-slide-btn").first
+            if await slider.count() > 0:
+                box = await slider.bounding_box()
+                start_x = box['x'] + box['width'] / 2
+                start_y = box['y'] + box['height'] / 2
+                
+                await page.mouse.move(start_x, start_y)
+                await page.mouse.down()
+                
+                # Kéo mô phỏng người dùng với AI distance
+                await page.mouse.move(start_x + distance, start_y, steps=35)
+                await asyncio.sleep(0.5)
+                await page.mouse.up()
+                
+            # Đợi OTP
             otp = get_otp_from_mail_tm(mail_token)
             if otp:
                 await inputs.nth(1).fill(otp)
                 await inputs.nth(2).fill("Pass123456@")
                 await page.locator('button:has-text("Register")').click()
+                print("--- Đăng ký hoàn tất ---")
                 await asyncio.sleep(5)
             
         except Exception as e:
-            print(f"Main Error: {e}")
+            print(f"Lỗi: {e}")
         finally:
             await page.screenshot(path="ketqua.png")
             await browser.close()
