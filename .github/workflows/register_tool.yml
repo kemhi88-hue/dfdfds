@@ -1,14 +1,11 @@
-name: VSPhone Auto Register Pro
-
+name: VSPhone Auto Register Worker
 on:
   repository_dispatch:
     types: [run-tool]
-  workflow_dispatch: 
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -18,23 +15,18 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install Libraries
+      - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          # Cài đặt các thư viện cần thiết bản ổn định
-          pip install playwright playwright-stealth requests
-          # Cài đặt trình duyệt và các thư viện hệ thống đi kèm
+          pip install playwright playwright-stealth
           playwright install chromium --with-deps
 
       - name: Run Registration Script
         run: |
-          # Chạy file register.py với mã Ref truyền vào hoặc mặc định
-          python register.py ${{ github.event.client_payload.ref || 'vsagwtjq63' }}
+          python register.py ${{ github.event.client_payload.email }} ${{ github.event.client_payload.password }} ${{ github.event.client_payload.ref }}
 
-      - name: Upload Logs
+      - name: Upload Result Screenshot
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: debug-results
-          path: |
-            *.png
+          name: registration-result
+          path: ketqua.png
