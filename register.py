@@ -5,24 +5,17 @@ import requests
 import time
 import base64
 from playwright.async_api import async_playwright
-from playwright_stealth import stealth  # Sửa từ stealth_async thành stealth
+from playwright_stealth import stealth # Đảm bảo import đúng
 
-# --- LẤY URL API GIẢI CAPTCHA ---
-def get_api_url():
+# --- API GIẢI CAPTCHA ---
+def solve_tiktok_puzzle(image_path):
     try:
         host_res = requests.get("https://raw.githubusercontent.com/dacohacotool/host_kk/refs/heads/main/url_serverkey.txt")
-        if host_res.status_code == 200:
-            return f"{host_res.text.strip()}/tiktok/puzzel"
-    except: return None
-
-def solve_tiktok_puzzle(image_path):
-    api_url = get_api_url()
-    if not api_url: return None
-    
-    with open(image_path, "rb") as f:
-        img_base64 = base64.b64encode(f.read()).decode('utf-8')
-    
-    try:
+        api_url = f"{host_res.text.strip()}/tiktok/puzzel"
+        
+        with open(image_path, "rb") as f:
+            img_base64 = base64.b64encode(f.read()).decode('utf-8')
+        
         response = requests.post(api_url, json={"base64_image": img_base64}, timeout=15)
         res_data = response.json()
         if res_data.get("success"):
@@ -30,57 +23,66 @@ def solve_tiktok_puzzle(image_path):
     except: pass
     return None
 
-# --- CHƯƠNG TRÌNH CHÍNH ---
 async def main():
     ref_code = sys.argv[1] if len(sys.argv) > 1 else "vsagwtjq63"
     
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
-        context = await browser.new_context(**p.devices['iPhone 13'])
+        # Sử dụng trình duyệt giả lập Mobile để dễ trượt captcha hơn
+        context = await browser.new_context(**p.devices['iPhone 12'])
         page = await context.new_page()
         
-        # SỬA LỖI TẠI ĐÂY: Dùng stealth(page) thay cho stealth_async
-        await stealth(page)
+        # --- FIX LỖI TẠI ĐÂY ---
+        # Gọi stealth như một function truyền page vào
+        await stealth(page) 
         
         try:
-            print(f"--- Đăng ký Ref: {ref_code} ---")
-            await page.goto(f"https://www.vsphone.com/invite/{ref_code}")
-            await asyncio.sleep(3)
+            print(f"--- Đang mở trang web với Ref: {ref_code} ---")
+            await page.goto(f"https://www.vsphone.com/invite/{ref_code}", wait_until="networkidle")
+            
+            # Giả lập thao tác người dùng: Cuộn trang một chút
+            await page.mouse.wheel(0, 500)
+            await asyncio.sleep(2)
 
-            # 1. Nhập Email (Dùng mail giả lập để test)
-            email = f"user_{int(time.time())}@gmail.com"
+            # Điền mail (Ví dụ dùng mail ngẫu nhiên để test flow)
+            email = f"test_{int(time.time())}@gmail.com"
             await page.locator('input[type="text"]').first.fill(email)
-            
-            # 2. Click lấy code để hiện Captcha
             await page.get_by_text("Get code").click()
-            await asyncio.sleep(4)
             
-            # 3. Chụp ảnh captcha
+            # Chờ captcha xuất hiện
+            await asyncio.sleep(4)
             captcha_el = page.locator(".captcha-main-img").first
+            
             if await captcha_el.is_visible():
-                await captcha_el.screenshot(path="captcha.png")
-                
-                # 4. Giải bằng API dacohacotool
-                distance = solve_tiktok_puzzle("captcha.png")
+                # Chụp ảnh để gửi API
+                await captcha_el.screenshot(path="captcha_debug.png")
+                distance = solve_tiktok_puzzle("captcha_debug.png")
                 
                 if distance:
-                    print(f"--- Khoảng cách nhận diện: {distance}px ---")
+                    print(f"--- Khoảng cách tìm được: {distance}px ---")
                     slider = page.locator(".van-slider__button, .page-slide-btn").first
-                    box = await slider.bounding_box()
+                    sb = await slider.bounding_box()
                     
-                    # Kéo slider mượt mà
-                    await page.mouse.move(box['x'] + box['width']/2, box['y'] + box['height']/2)
+                    # Tính toán tọa độ kéo (Dòng này cực quan trọng)
+                    start_x = sb['x'] + sb['width'] / 2
+                    start_y = sb['y'] + sb['height'] / 2
+                    
+                    # Bắt đầu kéo
+                    await page.mouse.move(start_x, start_y)
                     await page.mouse.down()
-                    # TikTok thường cần kéo distance * tỉ lệ màn hình, thử nghiệm distance chuẩn:
-                    await page.mouse.move(box['x'] + distance, box['y'] + box['height']/2, steps=25)
+                    
+                    # Kéo có biến thiên vận tốc (giả lập tay người)
+                    await page.mouse.move(start_x + distance, start_y, steps=30)
+                    await asyncio.sleep(0.5)
                     await page.mouse.up()
-                    print("--- Đã thực hiện giải captcha ---")
+                    print("--- Đã kéo xong Captcha ---")
             
             await asyncio.sleep(5)
-            await page.screenshot(path="ketqua.png")
+            await page.screenshot(path="result_final.png")
+            print("--- Hoàn tất flow đăng ký ---")
 
         except Exception as e:
-            print(f"Lỗi thực thi: {e}")
+            print(f"Lỗi: {e}")
         finally:
             await browser.close()
 
