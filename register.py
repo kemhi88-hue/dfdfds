@@ -1,7 +1,8 @@
 import asyncio
 import sys
 from playwright.async_api import async_playwright
-import playwright_stealth
+# Import trực tiếp hàm stealth
+from playwright_stealth import stealth
 
 async def main():
     # Kiểm tra tham số truyền vào
@@ -18,20 +19,23 @@ async def main():
         context = await browser.new_context()
         page = await context.new_page()
         
-        # Cách gọi stealth an toàn cho bản mới nhất
-        await playwright_stealth.stealth_async(page)
+        # Sử dụng hàm stealth trực tiếp (thay vì stealth_async)
+        await stealth(page)
 
         print(f"--- Đang mở trang đăng ký cho: {email} ---")
-        await page.goto(f"https://cloud.vsphone.com/register?code={ref_code}")
+        try:
+            await page.goto(f"https://cloud.vsphone.com/register?code={ref_code}", timeout=60000)
 
-        # Chờ và điền thông tin
-        await page.wait_for_selector('input[placeholder="Please enter your email address"]')
-        await page.fill('input[placeholder="Please enter your email address"]', email)
-        await page.fill('input[placeholder="Please enter your login password"]', password)
+            # Chờ và điền thông tin
+            await page.wait_for_selector('input[placeholder="Please enter your email address"]', timeout=10000)
+            await page.fill('input[placeholder="Please enter your email address"]', email)
+            await page.fill('input[placeholder="Please enter your login password"]', password)
+            
+            print("--- Đã điền xong form, đang dừng ở bước Captcha ---")
+            
+        except Exception as e:
+            print(f"Lỗi khi thực hiện thao tác: {e}")
         
-        print("--- Đã điền xong form, đang dừng ở bước Captcha ---")
-        # Giữ trình duyệt 1 lúc để quan sát log nếu cần
-        await asyncio.sleep(2)
         await browser.close()
 
 if __name__ == "__main__":
