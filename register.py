@@ -4,10 +4,10 @@ import re
 import requests
 import time
 import os
-import ddddocr # Thư viện AI chuyên dụng
+import ddddocr
 from playwright.async_api import async_playwright
 
-# --- HÀM EMAIL (Giữ nguyên) ---
+# --- HÀM EMAIL ---
 def create_temp_email():
     try:
         domain_res = requests.get("https://api.mail.tm/domains").json()
@@ -34,28 +34,21 @@ def get_otp_from_mail_tm(token):
         except: pass
     return None
 
-# --- AI GIẢI CAPTCHA (Dùng Deep Learning) ---
+# --- AI GIẢI CAPTCHA ---
 async def get_distance_with_ai(page):
     try:
-        await page.wait_for_selector(".captcha-main-img", timeout=10000)
+        await page.wait_for_selector(".captcha-main-img", timeout=15000)
         bg_path, slice_path = "bg.png", "slice.png"
         
-        # Chụp ảnh Captcha
         await page.locator(".captcha-main-img").first.screenshot(path=bg_path)
         await page.locator(".captcha-slice-img").first.screenshot(path=slice_path)
 
-        # Khởi tạo AI ddddocr
+        # Khởi tạo AI
         det = ddddocr.DdddOcr(det=False, show_ad=False)
-        
-        with open(slice_path, 'rb') as f:
-            target_bytes = f.read()
-        with open(bg_path, 'rb') as f:
-            background_bytes = f.read()
+        with open(slice_path, 'rb') as f: target_bytes = f.read()
+        with open(bg_path, 'rb') as f: background_bytes = f.read()
             
-        # AI thực hiện khớp lệnh (slide_match)
         res = det.slide_match(target_bytes, background_bytes, simple_target=True)
-        
-        # res['target'][0] chính là tọa độ X cần kéo đến
         distance = res['target'][0]
         print(f"--- AI nhận diện khoảng cách: {distance}px ---")
         return distance
@@ -70,9 +63,8 @@ async def main():
     
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
-        
-        # Cấu hình iPhone 13 và fix Viewport để AI làm việc chuẩn nhất
         iphone = p.devices['iPhone 13']
+        # Cố định Viewport 1280x720 để AI tính toán pixel chuẩn xác
         context = await browser.new_context(
             **{k: v for k, v in iphone.items() if k != 'viewport'},
             viewport={'width': 1280, 'height': 720}
@@ -81,40 +73,37 @@ async def main():
         page = await context.new_page()
         
         try:
-            print(f"--- Đang truy cập mã mời: {ref_code} ---")
+            print(f"--- Truy cập ref: {ref_code} ---")
             await page.goto(f"https://www.vsphone.com/invite/{ref_code}", timeout=60000)
             await asyncio.sleep(5)
 
-            # Điền Email
             inputs = page.locator('input')
             await inputs.nth(0).fill(email)
             await page.get_by_text("Get code").click()
-            await asyncio.sleep(3)
+            await asyncio.sleep(4)
             
-            # --- DÙNG AI ĐỂ GIẢI ---
+            # Giải Captcha bằng AI
             distance = await get_distance_with_ai(page)
             
             slider = page.locator(".van-slider__button, .page-slide-btn").first
             if await slider.count() > 0:
                 box = await slider.bounding_box()
-                start_x = box['x'] + box['width'] / 2
-                start_y = box['y'] + box['height'] / 2
+                start_x, start_y = box['x'] + box['width']/2, box['y'] + box['height']/2
                 
                 await page.mouse.move(start_x, start_y)
                 await page.mouse.down()
-                
-                # Kéo mô phỏng người dùng với AI distance
-                await page.mouse.move(start_x + distance, start_y, steps=35)
+                # Kéo với steps=30 để giả lập tay người (tránh bị hệ thống chặn)
+                await page.mouse.move(start_x + distance, start_y, steps=30)
                 await asyncio.sleep(0.5)
                 await page.mouse.up()
+                print("--- Đã kéo mảnh ghép ---")
                 
-            # Đợi OTP
             otp = get_otp_from_mail_tm(mail_token)
             if otp:
                 await inputs.nth(1).fill(otp)
                 await inputs.nth(2).fill("Pass123456@")
                 await page.locator('button:has-text("Register")').click()
-                print("--- Đăng ký hoàn tất ---")
+                print("--- Đăng ký thành công ---")
                 await asyncio.sleep(5)
             
         except Exception as e:
