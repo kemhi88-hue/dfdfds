@@ -1,8 +1,8 @@
 import asyncio
 import sys
 from playwright.async_api import async_playwright
-# Import theo cách này để tránh lỗi module không thể gọi
-import playwright_stealth
+# Cách import trực tiếp để tránh lỗi 'module has no attribute'
+from playwright_stealth import stealth_async
 
 async def main():
     if len(sys.argv) < 4:
@@ -18,23 +18,28 @@ async def main():
         context = await browser.new_context()
         page = await context.new_page()
         
-        # Gọi chính xác hàm stealth từ module đã import
-        await playwright_stealth.stealth_async(page)
+        # Thử thực hiện stealth, nếu vẫn lỗi thì bỏ qua để chạy tiếp
+        try:
+            await stealth_async(page)
+        except Exception as e:
+            print(f"Lưu ý: Không thể kích hoạt stealth ({e}), vẫn tiếp tục chạy...")
 
         print(f"--- Đang mở trang đăng ký cho: {email} ---")
         try:
-            # Tăng timeout lên 60s để tránh lỗi mạng trên GitHub
+            # Truy cập trang web
             await page.goto(f"https://cloud.vsphone.com/register?code={ref_code}", timeout=60000)
 
-            # Chờ ô nhập liệu xuất hiện
-            await page.wait_for_selector('input[placeholder="Please enter your email address"]', timeout=15000)
-            await page.fill('input[placeholder="Please enter your email address"]', email)
-            await page.fill('input[placeholder="Please enter your login password"]', password)
+            # Chờ ô nhập liệu (tăng thời gian chờ lên 20s cho chắc chắn)
+            await page.wait_for_selector('input[placeholder*="email"]', timeout=20000)
+            await page.fill('input[placeholder*="email"]', email)
+            await page.fill('input[placeholder*="password"]', password)
             
-            print("--- Đã điền xong form, đang dừng ở bước Captcha ---")
+            print("--- Đã điền xong form thành công! ---")
             
         except Exception as e:
-            print(f"Lỗi thao tác trên trang: {e}")
+            print(f"Dừng lại tại bước nhập liệu: {e}")
+            # Chụp ảnh màn hình lỗi để bạn tự xem web đang hiện gì
+            await page.screenshot(path="error_screen.png")
         
         await browser.close()
 
