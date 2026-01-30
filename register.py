@@ -5,110 +5,79 @@ import requests
 import time
 from playwright.async_api import async_playwright
 
-# --- HÀM HỖ TRỢ MAIL.TM (MIỄN PHÍ) ---
-def create_temp_email():
-    """Tạo một tài khoản email ngẫu nhiên trên Mail.tm"""
+# --- HÀM GIẢI CAPTCHA ---
+async def solve_puzzle_captcha(page):
+    """Xử lý kéo mảnh ghép dựa trên ảnh thực tế"""
     try:
-        # Lấy domain khả dụng
-        domain_res = requests.get("https://api.mail.tm/domains").json()
-        domain = domain_res['hydra:member'][0]['domain']
+        print("--- Đang phát hiện Captcha ghép hình... ---")
+        # Chờ slider xuất hiện (theo giao diện van-ui thường dùng)
+        slider_selector = '.van-slider__button, .page-slide-btn, [class*="slider"]'
+        await page.wait_for_selector(slider_selector, timeout=10000)
         
-        # Tạo user ngẫu nhiên
-        user = f"user_{int(time.time())}"
-        email = f"{user}@{domain}"
-        password = "Password123"
+        slider = page.locator(slider_selector).first
+        box = await slider.bounding_box()
         
-        # Đăng ký tài khoản email
-        res = requests.post("https://api.mail.tm/accounts", json={"address": email, "password": password})
-        if res.status_code == 201:
-            # Đăng nhập để lấy Token
-            token_res = requests.post("https://api.mail.tm/token", json={"address": email, "password": password}).json()
-            return email, token_res['token']
+        # Điểm bắt đầu (giữa nút trượt)
+        start_x = box['x'] + box['width'] / 2
+        start_y = box['y'] + box['height'] / 2
+        
+        # Khoảng cách kéo (Dựa trên ảnh image_2f0fd9.png, thường khoảng 160-200 pixel)
+        # Chúng ta sẽ kéo thử 180px, nếu không khớp bạn hãy báo tôi để chỉnh lại
+        distance = 180 
+        
+        print(f"--- Thực hiện kéo slider từ {start_x} đi {distance}px ---")
+        await page.mouse.move(start_x, start_y)
+        await page.mouse.down()
+        
+        # Kéo từ từ có gia tốc để giống người thật
+        await page.mouse.move(start_x + distance, start_y, steps=25)
+        await asyncio.sleep(0.5)
+        await page.mouse.up()
+        
+        print("--- Đã kéo xong Captcha ---")
+        await asyncio.sleep(2) # Chờ hệ thống xác nhận
     except Exception as e:
-        print(f"Lỗi tạo mail: {e}")
-    return None, None
-
-def get_otp_from_mail_tm(token):
-    """Đợi và lấy mã OTP từ hộp thư Mail.tm"""
-    headers = {"Authorization": f"Bearer {token}"}
-    print("--- Đang đợi OTP từ Mail.tm (tối đa 60s)... ---")
-    
-    for _ in range(12):
-        time.sleep(5)
-        try:
-            msgs = requests.get("https://api.mail.tm/messages", headers=headers).json()
-            if msgs['hydra:member']:
-                msg_id = msgs['hydra:member'][0]['@id']
-                # Lấy nội dung chi tiết thư
-                content = requests.get(f"https://api.mail.tm{msg_id}", headers=headers).json()
-                body = content.get('text', '') or content.get('intro', '')
-                # Tìm mã 6 chữ số
-                otp = re.findall(r'\b\d{6}\b', body)
-                if otp: return otp[0]
-        except: pass
-    return None
+        print(f"--- Không tìm thấy Captcha hoặc lỗi khi kéo: {e} ---")
 
 # --- LUỒNG CHÍNH ---
 async def main():
-    # Lấy ref_code từ tham số dòng lệnh (ví dụ: vsagwtjq63)
-    ref_code = sys.argv[3] if len(sys.argv) > 3 else "default_ref"
-    password_acc = "Huhu1211@" # Mật khẩu cho tài khoản VSPhone mới
-
-    # Bước 1: Tạo Email ảo
-    email, token = create_temp_email()
-    if not email:
-        print("Không thể tạo email ảo. Dừng lại.")
-        return
-    print(f"--- Đã tạo Email thành công: {email} ---")
+    ref_code = sys.argv[1] if len(sys.argv) > 1 else "vsagwtjq63"
+    
+    # Tạo email ảo qua Mail.tm
+    email, mail_token = create_temp_email() # Sử dụng hàm tạo mail đã viết ở trên
+    if not email: return
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
-        # Giả lập thiết bị để tránh bị chặn IP
+        # Bắt buộc dùng iPhone 13 để hiện đúng giao diện Captcha như ảnh
         context = await browser.new_context(**p.devices['iPhone 13'])
         page = await context.new_page()
         
         try:
-            target_url = f"https://www.vsphone.com/invite/{ref_code}"
-            print(f"--- Truy cập link: {target_url} ---")
-            await page.goto(target_url, timeout=60000)
-            await asyncio.sleep(5)
+            await page.goto(f"https://www.vsphone.com/invite/{ref_code}", timeout=100000, wait_until="commit")
+            await asyncio.sleep(10)
 
-            # Điền Email
-            await page.locator('input[placeholder*="email"]').first.fill(email)
+            # 1. Điền Email vào ô đầu tiên
+            await page.locator('input').nth(0).fill(email)
             
-            # Bấm "Get code"
-            get_code_btn = page.get_by_text("Get code")
-            await get_code_btn.click()
-            print("--- Đã bấm Get code. Đang check hộp thư... ---")
+            # 2. Bấm Get code để hiện Captcha
+            await page.get_by_text("Get code").click()
+            await asyncio.sleep(3)
             
-            # Bước 2: Lấy OTP
-            otp_code = get_otp_from_mail_tm(token)
-            if otp_code:
-                print(f"--- Lấy được OTP: {otp_code}. Đang nhập... ---")
-                # Điền mã OTP vào ô thứ 2
-                await page.locator('input[placeholder*="verification"]').first.fill(otp_code)
-                
-                # Điền Mật khẩu vào ô thứ 3
-                await page.locator('input[type="password"]').first.fill(password_acc)
-                
-                # Bấm Register
+            # 3. GIẢI CAPTCHA TẠI ĐÂY
+            await solve_puzzle_captcha(page)
+            
+            # 4. Đợi OTP và điền tiếp các ô còn lại
+            otp = get_otp_from_mail_tm(mail_token)
+            if otp:
+                await page.locator('input').nth(1).fill(otp)
+                await page.locator('input').nth(2).fill("Password99@")
                 await page.click('button:has-text("Register")')
-                print("--- Đã nhấn Register! Đang kiểm tra kết quả... ---")
-                await asyncio.sleep(5)
-            else:
-                print("--- Quá thời gian chờ OTP. ---")
-
-            # Chụp ảnh kết quả cuối cùng
+                print("--- Đã gửi form đăng ký ---")
+            
+            await asyncio.sleep(5)
             await page.screenshot(path="ketqua.png")
-            # Lưu lại thông tin tài khoản để bạn biết
-            with open("accounts.txt", "a") as f:
-                f.write(f"Email: {email} | Pass: {password_acc}\n")
-
         except Exception as e:
             print(f"Lỗi: {e}")
             await page.screenshot(path="ketqua.png")
-        
         await browser.close()
-
-if __name__ == "__main__":
-    asyncio.run(main())
