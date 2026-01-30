@@ -1,13 +1,12 @@
 import asyncio
 import sys
 from playwright.async_api import async_playwright
-# Import trực tiếp hàm stealth
-from playwright_stealth import stealth
+# Import theo cách này để tránh lỗi module không thể gọi
+import playwright_stealth
 
 async def main():
-    # Kiểm tra tham số truyền vào
     if len(sys.argv) < 4:
-        print("Lỗi: Thiếu tham số Email, Password hoặc Ref.")
+        print("Lỗi: Thiếu tham số truyền vào.")
         return
 
     email = sys.argv[1]
@@ -19,22 +18,23 @@ async def main():
         context = await browser.new_context()
         page = await context.new_page()
         
-        # Sử dụng hàm stealth trực tiếp (thay vì stealth_async)
-        await stealth(page)
+        # Gọi chính xác hàm stealth từ module đã import
+        await playwright_stealth.stealth_async(page)
 
         print(f"--- Đang mở trang đăng ký cho: {email} ---")
         try:
+            # Tăng timeout lên 60s để tránh lỗi mạng trên GitHub
             await page.goto(f"https://cloud.vsphone.com/register?code={ref_code}", timeout=60000)
 
-            # Chờ và điền thông tin
-            await page.wait_for_selector('input[placeholder="Please enter your email address"]', timeout=10000)
+            # Chờ ô nhập liệu xuất hiện
+            await page.wait_for_selector('input[placeholder="Please enter your email address"]', timeout=15000)
             await page.fill('input[placeholder="Please enter your email address"]', email)
             await page.fill('input[placeholder="Please enter your login password"]', password)
             
             print("--- Đã điền xong form, đang dừng ở bước Captcha ---")
             
         except Exception as e:
-            print(f"Lỗi khi thực hiện thao tác: {e}")
+            print(f"Lỗi thao tác trên trang: {e}")
         
         await browser.close()
 
