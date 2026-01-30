@@ -1,5 +1,5 @@
 playwright==1.40.0
 requests
-playwright-stealth
+playwright-stealth==1.0.6
 ddddocr
 numpy
