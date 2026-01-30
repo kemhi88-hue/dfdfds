@@ -1,53 +1,70 @@
 import asyncio
 import sys
 from playwright.async_api import async_playwright
+import playwright_stealth
+
+async def solve_slider(page):
+    print("--- Đang xử lý Captcha trượt... ---")
+    try:
+        # Chờ nút gạt xuất hiện
+        slider_selector = ".geetest_slider_button" 
+        await page.wait_for_selector(slider_selector, timeout=15000)
+        
+        slider = page.locator(slider_selector)
+        box = await slider.bounding_box()
+        
+        start_x = box['x'] + box['width'] / 2
+        start_y = box['y'] + box['height'] / 2
+        
+        # Khoảng cách trượt thông dụng cho VSPhone
+        distance = 165 
+        
+        await page.mouse.move(start_x, start_y)
+        await page.mouse.down()
+        
+        # Kéo có gia tốc để giả lập người thật
+        await page.mouse.move(start_x + distance * 0.7, start_y + 2, steps=10)
+        await asyncio.sleep(0.1)
+        await page.mouse.move(start_x + distance, start_y, steps=8)
+        
+        await page.mouse.up()
+        print("--- Đã thực hiện xong thao tác trượt. ---")
+    except Exception as e:
+        print(f"Lỗi Captcha: {e}")
 
 async def main():
-    if len(sys.argv) < 4:
-        print("Lỗi: Thiếu tham số truyền vào.")
-        return
-
-    email = sys.argv[1]
-    password = sys.argv[2]
-    ref_code = sys.argv[3]
+    if len(sys.argv) < 4: return
+    email, password, ref_code = sys.argv[1], sys.argv[2], sys.argv[3]
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
-        context = await browser.new_context()
+        context = await browser.new_context(viewport={'width': 1280, 'height': 720})
         page = await context.new_page()
         
-        # Cách gọi stealth an toàn: Thử từng hàm một
+        # Kích hoạt chế độ ẩn danh (Stealth) an toàn
         try:
             import playwright_stealth
-            # Thử hàm stealth_async, nếu không có thì thử hàm stealth
-            if hasattr(playwright_stealth, 'stealth_async'):
-                await playwright_stealth.stealth_async(page)
-            elif hasattr(playwright_stealth, 'stealth'):
-                await playwright_stealth.stealth(page)
-        except Exception as e:
-            print(f"Bỏ qua bước Stealth do lỗi thư viện: {e}")
+            await playwright_stealth.stealth_async(page)
+        except: pass
 
-        print(f"--- Đang mở trang đăng ký cho: {email} ---")
-        try:
-            # Truy cập trang web với thời gian chờ 60 giây
-            await page.goto(f"https://cloud.vsphone.com/register?code={ref_code}", timeout=60000)
+        print(f"--- Đăng ký tài khoản: {email} ---")
+        await page.goto(f"https://cloud.vsphone.com/register?code={ref_code}", timeout=60000)
 
-            # Đợi ô nhập liệu xuất hiện (sử dụng selector linh hoạt hơn)
-            await page.wait_for_selector('input', timeout=20000)
-            
-            # Tìm và điền thông tin dựa trên placeholder hoặc type
-            inputs = await page.query_selector_all('input')
-            for i in inputs:
-                placeholder = await i.get_attribute('placeholder')
-                if placeholder and 'email' in placeholder.lower():
-                    await i.fill(email)
-                if placeholder and 'password' in placeholder.lower():
-                    await i.fill(password)
-            
-            print("--- Đã điền xong form thành công! ---")
-            
-        except Exception as e:
-            print(f"Dừng lại tại bước thao tác: {e}")
+        # Điền thông tin đăng ký
+        await page.wait_for_selector('input[placeholder*="email"]')
+        await page.fill('input[placeholder*="email"]', email)
+        await page.fill('input[placeholder*="password"]', password)
+        
+        # Nhấn nút Register để hiện Captcha
+        await page.click('button:has-text("Register"), .register-btn')
+        
+        await asyncio.sleep(3) # Đợi captcha load
+        await solve_slider(page)
+        
+        # Đợi 5s để trang xử lý và chụp ảnh kết quả
+        await asyncio.sleep(5)
+        await page.screenshot(path="ketqua.png")
+        print("--- Đã chụp ảnh kết quả lưu vào ketqua.png ---")
         
         await browser.close()
 
