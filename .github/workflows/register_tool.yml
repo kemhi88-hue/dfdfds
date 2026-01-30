@@ -1,0 +1,25 @@
+name: VSPhone Auto Register Worker
+on:
+  repository_dispatch:
+    types: [run-tool]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          playwright install chromium
+
+      - name: Run Registration Script
+        run: |
+          python register.py ${{ github.event.client_payload.email }} ${{ github.event.client_payload.password }} ${{ github.event.client_payload.ref }}
