@@ -1,52 +1,48 @@
-name: VSPhone Auto Register AI Worker
+name: Run Register Bot AI
 
 on:
-  repository_dispatch:
-    types: [run-tool]
+  workflow_dispatch: # Cho phép nhấn nút "Run workflow" thủ công
+  push:
+    branches:
+      - main # Tự động chạy khi bạn commit code vào nhánh main
 
 jobs:
-  build:
+  register-job:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-          cache: 'pip'
-
-      - name: Cache Playwright Browsers
-        id: cache-playwright
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-browsers-${{ runner.os }}
 
       - name: Install System Dependencies
-        # Sửa lỗi 'no installation candidate' bằng cách dùng thư viện chuẩn mới nhất
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgl1 libegl1 libxrender1 libxext6 libglib2.0-0
+          sudo apt-get install -y libgl1-mesa-glx # Bắt buộc phải có để chạy OpenCV trên Linux
 
-      - name: Install Python Libraries
+      - name: Install Python Dependencies
         run: |
-          pip install playwright playwright-stealth requests opencv-python-headless numpy
-          # Lưu ý: Dùng opencv-python-headless sẽ nhẹ hơn và tránh lỗi hiển thị trên server
-          if [ "${{ steps.cache-playwright.outputs.cache-hit }}" != "true" ]; then
-            playwright install chromium --with-deps
-          fi
+          python -m pip install --upgrade pip
+          pip install playwright opencv-python numpy ddddocr requests
+          playwright install chromium
 
-      - name: Run Registration Script with AI
+      - name: Run Registration Script
         run: |
-          python register.py ${{ github.event.client_payload.ref }}
+          # vsagwtjq63 là mã mời mặc định, bạn có thể thay đổi ở đây
+          python register.py vsagwtjq63
+        env:
+          PYTHONUNBUFFERED: 1
 
       - name: Upload Result Screenshot
-        if: always()
-        uses: actions/upload-artifact@v4
+        if: always() # Luôn chạy bước này kể cả khi script lỗi để xem kết quả
+        uses: actions/upload-artifact@v3
         with:
           name: registration-result
-          path: ketqua.png
-          if-no-files-found: warn
+          path: |
+            ketqua.png
+            bg.png
+            slice.png
