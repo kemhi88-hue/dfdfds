@@ -1,8 +1,8 @@
-name: VSPhone Auto Register Worker
+name: VSPhone Auto Register AI Worker
 
 on:
   repository_dispatch:
-    types: [run-tool] # Kích hoạt khi bạn nhấn nút trên giao diện web
+    types: [run-tool] # Kích hoạt từ nút bấm trên giao diện web của bạn
 
 jobs:
   build:
@@ -16,9 +16,9 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-          cache: 'pip' # Tự động lưu bộ nhớ đệm các thư viện python để chạy nhanh hơn từ lần sau
+          cache: 'pip' # Lưu cache thư viện Python để tăng tốc cho các lần chạy sau
 
-      # Lưu trình duyệt Playwright vào cache để tiết kiệm thời gian tải (khoảng 30-40s)
+      # Lưu cache trình duyệt Playwright (Giảm thời gian chờ từ 1 phút xuống còn vài giây)
       - name: Cache Playwright Browsers
         id: cache-playwright
         uses: actions/cache@v4
@@ -26,24 +26,30 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-browsers-${{ runner.os }}
 
-      - name: Install dependencies
+      - name: Install System Dependencies
+        # Cài đặt các thư viện hệ thống cần thiết để OpenCV (xử lý ảnh) và Playwright chạy được trên Linux
         run: |
-          pip install playwright playwright-stealth requests
-          # Chỉ cài đặt trình duyệt nếu chưa có trong cache
+          sudo apt-get update
+          sudo apt-get install -y libgl1-mesa-glx libglib2.0-0
+
+      - name: Install Python Libraries
+        run: |
+          pip install playwright playwright-stealth requests opencv-python numpy
+          # Chỉ tải trình duyệt nếu chưa có trong bộ nhớ đệm
           if [ "${{ steps.cache-playwright.outputs.cache-hit }}" != "true" ]; then
             playwright install chromium --with-deps
           fi
 
-      - name: Run Registration Script
-        # Truyền mã mời (ref) từ client_payload của giao diện web vào script
+      - name: Run Registration Script with AI
+        # Lấy Ref Code từ client_payload để truyền vào script Python
         run: |
           python register.py ${{ github.event.client_payload.ref }}
 
-      # Bước cực kỳ quan trọng: Luôn tải ảnh kết quả lên để bạn kiểm tra lỗi Captcha
       - name: Upload Result Screenshot
-        if: always() # Lệnh này đảm bảo dù script Python bị lỗi, ảnh vẫn được tải lên
+        # Luôn chạy bước này kể cả khi script gặp lỗi để bạn xem được vị trí AI bị kẹt
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: registration-result
           path: ketqua.png
-          if-no-files-found: warn # Cảnh báo nếu không tìm thấy file thay vì làm đỏ tiến trình
+          if-no-files-found: warn
