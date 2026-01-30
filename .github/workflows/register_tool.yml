@@ -21,20 +21,20 @@ jobs:
       - name: Install Libraries
         run: |
           python -m pip install --upgrade pip
-          # Cài đặt phiên bản cụ thể để tránh lỗi "module not callable"
-          pip install playwright requests
-          pip install git+https://github.com/diprajpatra/playwright_stealth.git
+          # Cài đặt các thư viện cần thiết bản ổn định
+          pip install playwright playwright-stealth requests
+          # Cài đặt trình duyệt và các thư viện hệ thống đi kèm
           playwright install chromium --with-deps
 
       - name: Run Registration Script
         run: |
-          # Chạy script với mã Ref từ Payload hoặc mặc định
+          # Chạy file register.py với mã Ref truyền vào hoặc mặc định
           python register.py ${{ github.event.client_payload.ref || 'vsagwtjq63' }}
 
-      - name: Upload Result
+      - name: Upload Logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: registration-debug
+          name: debug-results
           path: |
             *.png
