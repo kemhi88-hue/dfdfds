@@ -1,72 +1,81 @@
 import asyncio
 import sys
+import requests
+import base64
+import time
 from playwright.async_api import async_playwright
 import playwright_stealth
 
-async def solve_slider(page):
-    print("--- Đang xử lý Captcha trượt... ---")
+# --- HÀM GIẢI CAPTCHA ---
+def solve_tiktok_captcha(image_path):
     try:
-        # Chờ nút gạt xuất hiện
-        slider_selector = ".geetest_slider_button" 
-        await page.wait_for_selector(slider_selector, timeout=15000)
-        
-        slider = page.locator(slider_selector)
-        box = await slider.bounding_box()
-        
-        start_x = box['x'] + box['width'] / 2
-        start_y = box['y'] + box['height'] / 2
-        
-        # Khoảng cách trượt thông dụng cho VSPhone
-        distance = 165 
-        
-        await page.mouse.move(start_x, start_y)
-        await page.mouse.down()
-        
-        # Kéo có gia tốc để giả lập người thật
-        await page.mouse.move(start_x + distance * 0.7, start_y + 2, steps=10)
-        await asyncio.sleep(0.1)
-        await page.mouse.move(start_x + distance, start_y, steps=8)
-        
-        await page.mouse.up()
-        print("--- Đã thực hiện xong thao tác trượt. ---")
-    except Exception as e:
-        print(f"Lỗi Captcha: {e}")
+        host_res = requests.get("https://raw.githubusercontent.com/dacohacotool/host_kk/refs/heads/main/url_serverkey.txt")
+        host = host_res.text.strip()
+        with open(image_path, "rb") as f:
+            img_b64 = base64.b64encode(f.read()).decode()
+        res = requests.post(f"{host}/tiktok/puzzel", json={"base64_image": img_b64}, timeout=15).json()
+        if res.get("success"): return res.get("result")
+    except: return None
 
+# --- LUỒNG CHÍNH ---
 async def main():
-    if len(sys.argv) < 4: return
-    email, password, ref_code = sys.argv[1], sys.argv[2], sys.argv[3]
-
+    # Nhận mã Ref từ tham số thứ 3 (theo log của bạn: fg fgfg vsagwtjq63)
+    ref = sys.argv[3] if len(sys.argv) > 3 else "vsagwtjq63"
+    
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
-        context = await browser.new_context(viewport={'width': 1280, 'height': 720})
+        # Sử dụng User Agent của iPhone để giảm tỉ lệ bị chặn
+        context = await browser.new_context(**p.devices['iPhone 12'])
         page = await context.new_page()
         
-        # Kích hoạt chế độ ẩn danh (Stealth) an toàn
+        # Kích hoạt chế độ ẩn danh
+        await playwright_stealth.stealth(page)
+        
         try:
-            import playwright_stealth
-            await playwright_stealth.stealth_async(page)
-        except: pass
+            print(f"🚀 Truy cập link Ref: {ref}")
+            await page.goto(f"https://www.vsphone.com/invite/{ref}", wait_until="networkidle")
+            
+            # Sửa lỗi: Dùng selector tổng quát hơn cho ô nhập email
+            # Thử tìm input type="text" đầu tiên nếu không thấy placeholder "email"
+            email_input = page.locator('input[type="text"], input[placeholder*="mail"], input[placeholder*="Email"]').first
+            
+            print("⏳ Đang chờ ô nhập email xuất hiện...")
+            await email_input.wait_for(state="visible", timeout=15000)
+            
+            email_val = f"vsp_{int(time.time())}@gmail.com"
+            await email_input.fill(email_val)
+            print(f"✅ Đã điền Email: {email_val}")
 
-        print(f"--- Đăng ký tài khoản: {email} ---")
-        await page.goto(f"https://cloud.vsphone.com/register?code={ref_code}", timeout=60000)
+            # Click nút lấy mã
+            await page.get_by_text("Get code").click()
+            await asyncio.sleep(5)
 
-        # Điền thông tin đăng ký
-        await page.wait_for_selector('input[placeholder*="email"]')
-        await page.fill('input[placeholder*="email"]', email)
-        await page.fill('input[placeholder*="password"]', password)
-        
-        # Nhấn nút Register để hiện Captcha
-        await page.click('button:has-text("Register"), .register-btn')
-        
-        await asyncio.sleep(3) # Đợi captcha load
-        await solve_slider(page)
-        
-        # Đợi 5s để trang xử lý và chụp ảnh kết quả
-        await asyncio.sleep(5)
-        await page.screenshot(path="ketqua.png")
-        print("--- Đã chụp ảnh kết quả lưu vào ketqua.png ---")
-        
-        await browser.close()
+            # Xử lý Captcha trượt
+            captcha_img = page.locator(".captcha-main-img, #captcha-verify-image").first
+            if await captcha_img.is_visible():
+                print("🧩 Phát hiện Captcha...")
+                await captcha_img.screenshot(path="cap.png")
+                dist = solve_tiktok_captcha("cap.png")
+                
+                if dist:
+                    slider = page.locator(".van-slider__button, .page-slide-btn, .secsdk-captcha-drag-icon").first
+                    box = await slider.bounding_box()
+                    if box:
+                        sx, sy = box['x'] + box['width']/2, box['y'] + box['height']/2
+                        await page.mouse.move(sx, sy)
+                        await page.mouse.down()
+                        await page.mouse.move(sx + dist, sy, steps=30)
+                        await page.mouse.up()
+                        print("🎯 Đã trượt captcha")
+
+            await asyncio.sleep(5)
+            await page.screenshot(path="ketqua.png")
+
+        except Exception as e:
+            print(f"❌ Lỗi: {e}")
+            await page.screenshot(path="error_debug.png")
+        finally:
+            await browser.close()
 
 if __name__ == "__main__":
     asyncio.run(main())
