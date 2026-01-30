@@ -1,11 +1,13 @@
 name: VSPhone Auto Register Worker
+
 on:
   repository_dispatch:
-    types: [run-tool]
+    types: [run-tool] # Kích hoạt khi bạn nhấn nút trên giao diện web
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -14,19 +16,34 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
+          cache: 'pip' # Tự động lưu bộ nhớ đệm các thư viện python để chạy nhanh hơn từ lần sau
+
+      # Lưu trình duyệt Playwright vào cache để tiết kiệm thời gian tải (khoảng 30-40s)
+      - name: Cache Playwright Browsers
+        id: cache-playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-browsers-${{ runner.os }}
 
       - name: Install dependencies
         run: |
           pip install playwright playwright-stealth requests
-          playwright install chromium --with-deps
+          # Chỉ cài đặt trình duyệt nếu chưa có trong cache
+          if [ "${{ steps.cache-playwright.outputs.cache-hit }}" != "true" ]; then
+            playwright install chromium --with-deps
+          fi
 
       - name: Run Registration Script
+        # Truyền mã mời (ref) từ client_payload của giao diện web vào script
         run: |
           python register.py ${{ github.event.client_payload.ref }}
 
+      # Bước cực kỳ quan trọng: Luôn tải ảnh kết quả lên để bạn kiểm tra lỗi Captcha
       - name: Upload Result Screenshot
-        if: always()
+        if: always() # Lệnh này đảm bảo dù script Python bị lỗi, ảnh vẫn được tải lên
         uses: actions/upload-artifact@v4
         with:
           name: registration-result
           path: ketqua.png
+          if-no-files-found: warn # Cảnh báo nếu không tìm thấy file thay vì làm đỏ tiến trình
