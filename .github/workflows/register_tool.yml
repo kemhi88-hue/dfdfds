@@ -2,7 +2,7 @@ name: VSPhone Auto Register AI Worker
 
 on:
   repository_dispatch:
-    types: [run-tool] # Kích hoạt từ nút bấm trên giao diện web của bạn
+    types: [run-tool]
 
 jobs:
   build:
@@ -16,9 +16,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-          cache: 'pip' # Lưu cache thư viện Python để tăng tốc cho các lần chạy sau
+          cache: 'pip'
 
-      # Lưu cache trình duyệt Playwright (Giảm thời gian chờ từ 1 phút xuống còn vài giây)
       - name: Cache Playwright Browsers
         id: cache-playwright
         uses: actions/cache@v4
@@ -27,26 +26,24 @@ jobs:
           key: playwright-browsers-${{ runner.os }}
 
       - name: Install System Dependencies
-        # Cài đặt các thư viện hệ thống cần thiết để OpenCV (xử lý ảnh) và Playwright chạy được trên Linux
+        # Sửa lỗi 'no installation candidate' bằng cách dùng thư viện chuẩn mới nhất
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgl1-mesa-glx libglib2.0-0
+          sudo apt-get install -y libgl1 libegl1 libxrender1 libxext6 libglib2.0-0
 
       - name: Install Python Libraries
         run: |
-          pip install playwright playwright-stealth requests opencv-python numpy
-          # Chỉ tải trình duyệt nếu chưa có trong bộ nhớ đệm
+          pip install playwright playwright-stealth requests opencv-python-headless numpy
+          # Lưu ý: Dùng opencv-python-headless sẽ nhẹ hơn và tránh lỗi hiển thị trên server
           if [ "${{ steps.cache-playwright.outputs.cache-hit }}" != "true" ]; then
             playwright install chromium --with-deps
           fi
 
       - name: Run Registration Script with AI
-        # Lấy Ref Code từ client_payload để truyền vào script Python
         run: |
           python register.py ${{ github.event.client_payload.ref }}
 
       - name: Upload Result Screenshot
-        # Luôn chạy bước này kể cả khi script gặp lỗi để bạn xem được vị trí AI bị kẹt
         if: always()
         uses: actions/upload-artifact@v4
         with:
