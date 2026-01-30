@@ -1,43 +1,43 @@
-# ... (Giữ nguyên các hàm create_temp_email và get_otp_from_mail_tm) ...
+import cv2
+import numpy as np
 
-async def main():
-    ref_code = sys.argv[1] if len(sys.argv) > 1 else "vsagwtjq63"
-    email, mail_token = create_temp_email()
+async def get_puzzle_distance(page):
+    """Sử dụng OpenCV để tính toán khoảng cách cần kéo"""
+    # 1. Chụp ảnh captcha thực tế từ màn hình
+    captcha_box = await page.locator('.captcha-main-image').bounding_box() # Selector có thể thay đổi tùy giao diện
+    await page.locator('.captcha-main-image').screenshot(path="background.png")
+    await page.locator('.captcha-slice-image').screenshot(path="slice.png")
+
+    # 2. Đọc ảnh bằng OpenCV
+    bg_img = cv2.imread("background.png", 0) # Chuyển ảnh xám
+    slice_img = cv2.imread("slice.png", 0)
+
+    # 3. Tìm vị trí khớp nhất
+    res = cv2.matchTemplate(bg_img, slice_img, cv2.TM_CCOEFF_NORMED)
+    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
     
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        context = await browser.new_context(**p.devices['iPhone 13'])
-        page = await context.new_page()
+    # Tọa độ X của điểm khớp chính là khoảng cách cần kéo
+    distance = max_loc[0] 
+    return distance
+
+async def solve_puzzle_captcha(page):
+    try:
+        print("--- AI đang phân tích vị trí mảnh ghép... ---")
+        distance = await get_puzzle_distance(page)
         
-        try:
-            # Bước 1: Vừa vào trang là chụp ảnh ngay (Ảnh khởi tạo)
-            await page.goto(f"https://www.vsphone.com/invite/{ref_code}", timeout=100000, wait_until="commit")
-            await asyncio.sleep(5)
-            await page.screenshot(path="ketqua.png") 
-            print("--- Đã chụp ảnh khởi tạo trang ---")
+        slider = page.locator('.van-slider__button').first
+        box = await slider.bounding_box()
+        start_x = box['x'] + box['width'] / 2
+        start_y = box['y'] + box['height'] / 2
 
-            # Bước 2: Điền thông tin
-            await page.locator('input').nth(0).fill(email)
-            await page.get_by_text("Get code").click()
-            await asyncio.sleep(3)
-            
-            # Bước 3: Chụp ảnh Captcha để xem
-            await page.screenshot(path="ketqua.png") 
-            
-            # Giải captcha và điền nốt... (như bản cũ)
-            await solve_puzzle_captcha(page)
-            
-            otp = get_otp_from_mail_tm(mail_token)
-            if otp:
-                await page.locator('input').nth(1).fill(otp)
-                await page.locator('input').nth(2).fill("Password99@")
-                await page.click('button:has-text("Register")')
-                await asyncio.sleep(5)
-                await page.screenshot(path="ketqua.png")
-
-        except Exception as e:
-            print(f"Lỗi thực thi: {e}")
-        finally:
-            # ĐẢM BẢO LUÔN CHỤP ẢNH CUỐI CÙNG TRƯỚC KHI ĐÓNG
-            await page.screenshot(path="ketqua.png")
-            await browser.close()
+        # Kéo với khoảng cách AI vừa tìm được
+        await page.mouse.move(start_x, start_y)
+        await page.mouse.down()
+        # Thêm một chút dao động ngẫu nhiên để giống người thật
+        await page.mouse.move(start_x + distance + 5, start_y, steps=20)
+        await asyncio.sleep(0.2)
+        await page.mouse.move(start_x + distance, start_y, steps=10)
+        await page.mouse.up()
+        print(f"--- AI đã kéo thành công: {distance}px ---")
+    except Exception as e:
+        print(f"Lỗi AI: {e}")
