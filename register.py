@@ -1,43 +1,128 @@
+import asyncio
+import sys
+import re
+import requests
+import time
 import cv2
 import numpy as np
+import os
+from playwright.async_api import async_playwright
 
-async def get_puzzle_distance(page):
-    """Sử dụng OpenCV để tính toán khoảng cách cần kéo"""
-    # 1. Chụp ảnh captcha thực tế từ màn hình
-    captcha_box = await page.locator('.captcha-main-image').bounding_box() # Selector có thể thay đổi tùy giao diện
-    await page.locator('.captcha-main-image').screenshot(path="background.png")
-    await page.locator('.captcha-slice-image').screenshot(path="slice.png")
-
-    # 2. Đọc ảnh bằng OpenCV
-    bg_img = cv2.imread("background.png", 0) # Chuyển ảnh xám
-    slice_img = cv2.imread("slice.png", 0)
-
-    # 3. Tìm vị trí khớp nhất
-    res = cv2.matchTemplate(bg_img, slice_img, cv2.TM_CCOEFF_NORMED)
-    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
-    
-    # Tọa độ X của điểm khớp chính là khoảng cách cần kéo
-    distance = max_loc[0] 
-    return distance
-
-async def solve_puzzle_captcha(page):
+# --- HÀM EMAIL (Giữ nguyên) ---
+def create_temp_email():
     try:
-        print("--- AI đang phân tích vị trí mảnh ghép... ---")
-        distance = await get_puzzle_distance(page)
-        
-        slider = page.locator('.van-slider__button').first
-        box = await slider.bounding_box()
-        start_x = box['x'] + box['width'] / 2
-        start_y = box['y'] + box['height'] / 2
+        domain_res = requests.get("https://api.mail.tm/domains").json()
+        domain = domain_res['hydra:member'][0]['domain']
+        user = f"vsp_{int(time.time())}"
+        email = f"{user}@{domain}"
+        requests.post("https://api.mail.tm/accounts", json={"address": email, "password": "Password123"})
+        token_res = requests.post("https://api.mail.tm/token", json={"address": email, "password": "Password123"}).json()
+        return email, token_res['token']
+    except: return None, None
 
-        # Kéo với khoảng cách AI vừa tìm được
-        await page.mouse.move(start_x, start_y)
-        await page.mouse.down()
-        # Thêm một chút dao động ngẫu nhiên để giống người thật
-        await page.mouse.move(start_x + distance + 5, start_y, steps=20)
-        await asyncio.sleep(0.2)
-        await page.mouse.move(start_x + distance, start_y, steps=10)
-        await page.mouse.up()
-        print(f"--- AI đã kéo thành công: {distance}px ---")
+def get_otp_from_mail_tm(token):
+    headers = {"Authorization": f"Bearer {token}"}
+    for _ in range(15):
+        time.sleep(5)
+        try:
+            msgs = requests.get("https://api.mail.tm/messages", headers=headers).json()
+            if msgs['hydra:member']:
+                msg_id = msgs['hydra:member'][0]['@id']
+                content = requests.get(f"https://api.mail.tm{msg_id}", headers=headers).json()
+                body = content.get('text', '') or content.get('intro', '')
+                otp = re.findall(r'\b\d{6}\b', body)
+                if otp: return otp[0]
+        except: pass
+    return None
+
+# --- AI XỬ LÝ CAPTCHA VỚI CƠ CHẾ QUÉT NHIỀU SELECTOR ---
+async def get_puzzle_distance(page):
+    try:
+        # Danh sách các class có thể là ảnh captcha (để tránh lỗi khi web đổi giao diện)
+        bg_selectors = [".captcha-main-img", ".van-image__img", "[class*='bg-img']", "img[src*='captcha']"]
+        slice_selectors = [".captcha-slice-img", ".page-slide-img", "[class*='slice-img']"]
+        
+        bg_path = "bg.png"
+        slice_path = "slice.png"
+
+        # Tìm selector đang hoạt động
+        bg_el = None
+        for s in bg_selectors:
+            if await page.locator(s).count() > 0:
+                bg_el = page.locator(s).first
+                break
+        
+        if not bg_el: return 180 # Fallback nếu không tìm thấy ảnh
+
+        await bg_el.screenshot(path=bg_path)
+        # Tương tự cho mảnh ghép
+        for s in slice_selectors:
+            if await page.locator(s).count() > 0:
+                await page.locator(s).first.screenshot(path=slice_path)
+                break
+        
+        # Xử lý OpenCV
+        img_rgb = cv2.imread(bg_path)
+        img_gray = cv2.cvtColor(img_rgb, cv2.COLOR_BGR2GRAY)
+        template = cv2.imread(slice_path, 0)
+        
+        res = cv2.matchTemplate(img_gray, template, cv2.TM_CCOEFF_NORMED)
+        _, _, _, max_loc = cv2.minMaxLoc(res)
+        
+        return max_loc[0]
     except Exception as e:
-        print(f"Lỗi AI: {e}")
+        print(f"AI Error: {e}")
+        return 180
+
+# --- LUỒNG CHÍNH ---
+async def main():
+    ref_code = sys.argv[1] if len(sys.argv) > 1 else "vsagwtjq63"
+    email, mail_token = create_temp_email()
+    
+    # ĐẢM BẢO FILE LUÔN TỒN TẠI ĐỂ GITHUB KHÔNG BÁO LỖI
+    with open("ketqua.png", "w") as f: f.write("") 
+
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        context = await browser.new_context(**p.devices['iPhone 13'])
+        page = await context.new_page()
+        
+        try:
+            print(f"--- Đang truy cập mã mời: {ref_code} ---")
+            await page.goto(f"https://www.vsphone.com/invite/{ref_code}", timeout=60000)
+            await asyncio.sleep(5)
+            await page.screenshot(path="ketqua.png") # Chụp ảnh lần 1
+
+            # Điền Form
+            inputs = page.locator('input')
+            await inputs.nth(0).fill(email)
+            await page.get_by_text("Get code").click()
+            await asyncio.sleep(3)
+            
+            # Giải Captcha
+            distance = await get_puzzle_distance(page)
+            slider = page.locator(".van-slider__button, .page-slide-btn").first
+            if await slider.count() > 0:
+                box = await slider.bounding_box()
+                await page.mouse.move(box['x'] + box['width']/2, box['y'] + box['height']/2)
+                await page.mouse.down()
+                await page.mouse.move(box['x'] + distance, box['y'] + box['height']/2, steps=15)
+                await page.mouse.up()
+                print(f"--- Đã kéo mảnh ghép {distance}px ---")
+            
+            # Nhận OTP
+            otp = get_otp_from_mail_tm(mail_token)
+            if otp:
+                await inputs.nth(1).fill(otp)
+                await inputs.nth(2).fill("Pass123456@")
+                await page.click('button:has-text("Register")')
+                await asyncio.sleep(5)
+            
+        except Exception as e:
+            print(f"Main Error: {e}")
+        finally:
+            await page.screenshot(path="ketqua.png") # Chụp ảnh cuối cùng
+            await browser.close()
+
+if __name__ == "__main__":
+    asyncio.run(main())
