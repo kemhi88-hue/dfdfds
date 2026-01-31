@@ -9,12 +9,12 @@ on:
         default: "vsagwtjq63"
 
 jobs:
-  run-bot:
+  run-tool:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
     steps:
-      - name: 📥 Checkout source
+      - name: 📥 Checkout code
         uses: actions/checkout@v4
 
       - name: 🐍 Setup Python
@@ -22,9 +22,10 @@ jobs:
         with:
           python-version: "3.10"
 
-      - name: 📦 Install dependencies
+      - name: 📦 Install dependencies (FIX VERSION)
         run: |
           python -m pip install --upgrade pip
+          pip uninstall -y playwright-stealth || true
           pip install playwright==1.42.0
           pip install playwright-stealth==1.0.6
           pip install requests
@@ -37,10 +38,10 @@ jobs:
           echo "Using REF: $REF_CODE"
           python register.py a b "$REF_CODE"
 
-      - name: 📤 Upload result screenshots
+      - name: 📤 Upload screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: result-images
+          name: debug-images
           path: |
             *.png
