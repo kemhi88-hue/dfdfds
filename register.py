@@ -5,7 +5,7 @@ import base64
 import requests
 
 from playwright.async_api import async_playwright
-from playwright_stealth import stealth
+from playwright_stealth.stealth import stealth   # ✅ FIX Ở ĐÂY
 
 
 # ================== GIẢI CAPTCHA TIKTOK (KKTOOL) ==================
