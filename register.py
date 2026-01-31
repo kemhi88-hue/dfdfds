@@ -53,26 +53,35 @@ async def get_puzzle_distance(page):
         res = cv2.matchTemplate(img_gray, template, cv2.TM_CCOEFF_NORMED)
         _, _, _, max_loc = cv2.minMaxLoc(res)
         
-        # Lấy tọa độ X của lỗ trống
-        return max_loc[0]
+        return max_loc[0] # Trả về tọa độ X cần lấp đầy
     except Exception as e:
         print(f"AI Error: {e}")
         return 160
 
 # --- LUỒNG CHÍNH ---
 async def main():
-    ref_code = sys.argv[1] if len(sys.argv) > 1 else "vsagwtjq63"
-    email, mail_token = create_temp_email()
+    # Sửa lỗi nhận tham số từ Workflow
+    email_in = sys.argv[1] if len(sys.argv) > 1 else "null"
+    password_in = sys.argv[2] if len(sys.argv) > 2 else "Pass123456@"
+    ref_code = sys.argv[3] if len(sys.argv) > 3 else "vsagwtjq63"
+
+    # Xử lý Email "null"
+    if email_in == "null":
+        email, mail_token = create_temp_email()
+    else:
+        email, mail_token = email_in, None
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
+        
+        # Sửa lỗi multiple values for viewport
         iphone = p.devices['iPhone 13']
         context_params = {k: v for k, v in iphone.items() if k != 'viewport'}
         context = await browser.new_context(**context_params, viewport={'width': 375, 'height': 812})
         page = await context.new_page()
         
         try:
-            print(f"--- Đang đăng ký cho: {email} ---")
+            print(f"--- Đăng ký tài khoản: {email} với mã {ref_code} ---")
             await page.goto(f"https://www.vsphone.com/invite/{ref_code}", timeout=60000)
             await asyncio.sleep(5)
 
@@ -80,49 +89,46 @@ async def main():
             await inputs.nth(0).fill(email)
             await page.get_by_text("Get code").click()
             
-            # 1. Đợi thanh trượt xuất hiện
+            # 1. Đợi thanh trượt (nút khoanh đỏ) xuất hiện
             slider = page.locator(".van-slider__button, .page-slide-btn").first
             await slider.wait_for(state="visible", timeout=20000)
             
-            # 2. Tính toán khoảng cách từ AI
+            # 2. AI tính toán khoảng cách
             distance = await get_puzzle_distance(page)
             box = await slider.bounding_box()
             
             if box:
-                # Tọa độ tâm nút trượt
                 start_x = box['x'] + box['width'] / 2
                 start_y = box['y'] + box['height'] / 2
                 
                 await page.mouse.move(start_x, start_y)
                 await page.mouse.down()
                 
-                # 3. Kéo dần dần để mảnh ghép khớp lỗ trống
+                # 3. Kéo mượt mà để lấp đầy nơi trống
                 steps = 35
                 for i in range(steps):
-                    # Tăng tốc ở giữa, giảm tốc khi gần đến lỗ trống
                     fraction = (i + 1) / steps
-                    current_move = start_x + (distance * fraction)
-                    # Thêm độ nhiễu Y để mô phỏng tay người
-                    await page.mouse.move(current_move, start_y + random.uniform(-1, 1))
+                    current_x = start_x + (distance * fraction)
+                    # Thêm độ nhiễu Y để mô phỏng người thật
+                    await page.mouse.move(current_x, start_y + random.uniform(-1, 1))
                     await asyncio.sleep(0.01)
                 
-                # Dừng lại 0.5s để hệ thống xác nhận đã khít
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(0.5) # Dừng lại để hệ thống khớp ảnh
                 await page.mouse.up()
-                print(f"--- Đã lấp đầy lỗ trống tại {distance}px ---")
+                print(f"--- Đã kéo {distance}px để lấp đầy captcha ---")
                 await asyncio.sleep(2)
             
             # 4. Nhập OTP và hoàn tất
-            otp = get_otp_from_mail_tm(mail_token)
+            otp = get_otp_from_mail_tm(mail_token) if mail_token else None
             if otp:
                 await inputs.nth(1).fill(otp)
-                await inputs.nth(2).fill("Pass123456@")
+                await inputs.nth(2).fill(password_in)
                 await page.locator('button:has-text("Register")').click()
                 await asyncio.sleep(5)
-                print("--- Đăng ký hoàn tất! ---")
+                print("--- Đăng ký thành công! ---")
             
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"Main Error: {e}")
         finally:
             await page.screenshot(path="ketqua.png")
             await browser.close()
