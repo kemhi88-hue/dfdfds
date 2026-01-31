@@ -1,52 +1,46 @@
-name: VSPhone Auto Register AI Worker
+name: Run VSPhone Register Bot
 
 on:
-  repository_dispatch:
-    types: [run-tool]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Invite Ref Code"
+        required: false
+        default: "vsagwtjq63"
 
 jobs:
-  build:
+  run-bot:
     runs-on: ubuntu-latest
-    
+    timeout-minutes: 30
+
     steps:
-      - name: Checkout code
+      - name: 📥 Checkout source
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: 🐍 Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
-          cache: 'pip'
+          python-version: "3.10"
 
-      - name: Cache Playwright Browsers
-        id: cache-playwright
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-browsers-${{ runner.os }}
-
-      - name: Install System Dependencies
-        # Sửa lỗi 'no installation candidate' bằng cách dùng thư viện chuẩn mới nhất
+      - name: 📦 Install dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libgl1 libegl1 libxrender1 libxext6 libglib2.0-0
+          python -m pip install --upgrade pip
+          pip install playwright==1.42.0
+          pip install playwright-stealth==1.0.6
+          pip install requests
+          playwright install chromium
 
-      - name: Install Python Libraries
+      - name: 🚀 Run register script
+        env:
+          REF_CODE: ${{ github.event.inputs.ref }}
         run: |
-          pip install playwright playwright-stealth requests opencv-python-headless numpy
-          # Lưu ý: Dùng opencv-python-headless sẽ nhẹ hơn và tránh lỗi hiển thị trên server
-          if [ "${{ steps.cache-playwright.outputs.cache-hit }}" != "true" ]; then
-            playwright install chromium --with-deps
-          fi
+          echo "Using REF: $REF_CODE"
+          python register.py a b "$REF_CODE"
 
-      - name: Run Registration Script with AI
-        run: |
-          python register.py ${{ github.event.client_payload.ref }}
-
-      - name: Upload Result Screenshot
+      - name: 📤 Upload result screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: registration-result
-          path: ketqua.png
-          if-no-files-found: warn
+          name: result-images
+          path: |
+            *.png
