@@ -1,35 +1,25 @@
-name: VSPhone Auto Register AI Worker
+name: VSPhone Auto AI
 on:
   repository_dispatch:
     types: [run-tool]
-
 jobs:
-  build:
+  run-bot:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-
-      - name: Install Dependencies
+      - name: Install
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libgl1 libglib2.0-0
           pip install playwright playwright-stealth requests opencv-python-headless numpy
           playwright install chromium --with-deps
-
-      - name: Run Registration
+          sudo apt-get update && sudo apt-get install -y libgl1
+      - name: Execute
         run: |
-          # Truyền Email, Pass, Ref từ payload vào register.py
           python register.py "${{ github.event.client_payload.email }}" "${{ github.event.client_payload.password }}" "${{ github.event.client_payload.ref }}"
-
-      - name: Upload Result
+      - uses: actions/upload-artifact@v4
         if: always()
-        uses: actions/upload-artifact@v4
         with:
-          name: registration-result
+          name: screen-result
           path: ketqua.png
