@@ -67,50 +67,57 @@ async def get_puzzle_distance(page):
 
 # --- LUỒNG CHÍNH ---
 async def main():
-    # Nhận tham số từ payload: [email, password, ref]
     email_in = sys.argv[1] if len(sys.argv) > 1 else "null"
     password_in = sys.argv[2] if len(sys.argv) > 2 else "Pass123456@"
     ref_code = sys.argv[3] if len(sys.argv) > 3 else "vsagwtjq63"
 
-    # Nếu email là null, kích hoạt mail tạm
     email, mail_token = (email_in, None) if email_in != "null" else create_temp_email()
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
-        context = await browser.new_context(**p.devices['iPhone 13'], viewport={'width': 375, 'height': 812})
+        
+        # FIX LỖI MULTIPLE VALUES CHO VIEWPORT
+        iphone_config = p.devices['iPhone 13']
+        # Tạo bản sao cấu hình và xóa viewport để tránh trùng lặp
+        context_params = {k: v for k, v in iphone_config.items() if k != 'viewport'}
+        
+        context = await browser.new_context(
+            **context_params,
+            viewport={'width': 375, 'height': 812}
+        )
+        
         page = await context.new_page()
         
         try:
             print(f"--- Đang đăng ký: {email} với mã {ref_code} ---")
             await page.goto(f"https://www.vsphone.com/invite/{ref_code}", timeout=60000)
-            await asyncio.sleep(3)
+            await asyncio.sleep(5)
 
             inputs = page.locator('input')
-            await inputs.nth(0).fill(email)
-            await page.get_by_text("Get code").click()
-            await asyncio.sleep(2)
-            
-            # Giải Captcha AI
-            dist = await get_puzzle_distance(page)
-            slider = page.locator(".van-slider__button, .page-slide-btn").first
-            box = await slider.bounding_box()
-            sx, sy = box['x'] + box['width']/2, box['y'] + box['height']/2
-            
-            await page.mouse.move(sx, sy)
-            await page.mouse.down()
-            for dx, dy in generate_trail(dist):
-                await page.mouse.move(sx + dx, sy + dy, steps=2)
-                await asyncio.sleep(0.01)
-            await page.mouse.up()
-            
-            # Nhận OTP
-            otp = get_otp_from_mail_tm(mail_token) if mail_token else "123456"
-            if otp:
-                await inputs.nth(1).fill(otp)
-                await inputs.nth(2).fill(password_in)
-                await page.locator('button:has-text("Register")').click()
-                await asyncio.sleep(5)
-                print("--- Thành công! ---")
+            if await inputs.count() > 0:
+                await inputs.nth(0).fill(email)
+                await page.get_by_text("Get code").click()
+                await asyncio.sleep(3)
+                
+                dist = await get_puzzle_distance(page)
+                slider = page.locator(".van-slider__button, .page-slide-btn").first
+                box = await slider.bounding_box()
+                sx, sy = box['x'] + box['width']/2, box['y'] + box['height']/2
+                
+                await page.mouse.move(sx, sy)
+                await page.mouse.down()
+                for dx, dy in generate_trail(dist):
+                    await page.mouse.move(sx + dx, sy + dy, steps=2)
+                    await asyncio.sleep(0.01)
+                await page.mouse.up()
+                
+                otp = get_otp_from_mail_tm(mail_token) if mail_token else None
+                if otp:
+                    await inputs.nth(1).fill(otp)
+                    await inputs.nth(2).fill(password_in)
+                    await page.locator('button:has-text("Register")').click()
+                    await asyncio.sleep(5)
+                    print("--- Đăng ký thành công! ---")
         except Exception as e: print(f"Lỗi: {e}")
         finally:
             await page.screenshot(path="ketqua.png")
