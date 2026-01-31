@@ -3,42 +3,49 @@
 <head>
     <meta charset="UTF-8"><title>VSPhone Automation</title>
     <style>
-        body { font-family: sans-serif; background: #f0f2f5; padding: 20px; }
-        .card { max-width: 500px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
-        .btn { width: 100%; padding: 12px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        .token-sec { background: #fff3cd; padding: 10px; border-radius: 5px; margin-bottom: 15px; }
+        body { font-family: sans-serif; background: #f0f2f5; padding: 20px; text-align: center; }
+        .card { max-width: 450px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        .btn { width: 100%; padding: 14px; background: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 16px; }
+        .btn:hover { background: #0056b3; }
+        .info { font-size: 13px; color: #666; margin-bottom: 20px; background: #e9ecef; padding: 10px; border-radius: 5px; }
     </style>
 </head>
 <body>
 <div class="card">
-    <h2>🚀 VSPhone Auto Register</h2>
-    <div class="token-sec">
-        <input type="password" id="gh_token" placeholder="Dán GitHub Personal Token vào đây">
-    </div>
-    <input type="text" id="ref_code" value="vsagwtjq63" placeholder="Nhập mã mời">
+    <h2>VSPhone AI Register</h2>
+    <p class="info">Dán Token và nhấn Kích hoạt. Hệ thống sẽ tự lấy Email tạm và giải Captcha.</p>
+    <input type="password" id="gh_token" placeholder="GitHub Personal Access Token">
+    <input type="text" id="ref_code" value="vsagwtjq63" placeholder="Mã mời (Ref Code)">
     <button class="btn" onclick="runTool()">KÍCH HOẠT MÁY ẢO</button>
 </div>
 
 <script>
 async function runTool() {
-    const token = document.getElementById('gh_token').value;
-    const ref = document.getElementById('ref_code').value;
-    if(!token) return alert("Thiếu Token!");
+    const token = document.getElementById('gh_token').value.trim();
+    const ref = document.getElementById('ref_code').value.trim();
+    if(!token) return alert("Vui lòng nhập GitHub Token!");
 
+    // Thay đổi thông tin repo của bạn tại đây
     const OWNER = "kemhi88-hue"; 
     const REPO = "dfdfds"; 
 
-    const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/dispatches`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            event_type: 'run-tool',
-            client_payload: { email: "null", password: "Pass123456@", ref: ref }
-        })
-    });
-    if(res.status === 204) alert("✅ Đã gửi lệnh! Kiểm tra tab Actions trên GitHub.");
-    else alert("❌ Lỗi kích hoạt!");
+    try {
+        const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/dispatches`, {
+            method: 'POST',
+            headers: { 
+                'Authorization': `Bearer ${token}`, 
+                'Accept': 'application/vnd.github.v3+json',
+                'Content-Type': 'application/json' 
+            },
+            body: JSON.stringify({
+                event_type: 'run-tool',
+                client_payload: { email: "null", password: "Pass123456@", ref: ref }
+            })
+        });
+        if(res.status === 204) alert("✅ Lệnh đã gửi! Hãy kiểm tra tab Actions.");
+        else alert("❌ Lỗi: " + res.status);
+    } catch(e) { alert("❌ Lỗi kết nối!"); }
 }
 </script>
 </body>
