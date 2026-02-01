@@ -14,47 +14,39 @@ async def run():
         channel_id = "1464219586386722816"
 
         try:
-            # Truy cập trang chủ để nạp Token trước
-            print("--- Đang nạp Token ---")
-            await page.goto("https://discord.com/app")
-            await page.evaluate(f"localStorage.setItem('token', '\"{token}\"');")
-            await asyncio.sleep(2)
-
-            # Truy cập thẳng vào kênh chat
-            url = f"https://discord.com/channels/@me/{channel_id}"
-            print(f"--- Đang truy cập: {url} ---")
-            await page.goto(url, wait_until="networkidle")
+            # Bước 1: Truy cập trang chủ Discord trước để khởi tạo localStorage
+            print("--- Truy cập Discord App ---")
+            await page.goto("https://discord.com/app", wait_until="domcontentloaded")
             
-            # Đợi thêm một chút cho Slate Editor load
-            print("--- Đang tìm ô chat (Slate Editor)... ---")
-            # Thay đổi selector linh hoạt hơn
-            selector = '[data-slate-editor="true"], [role="textbox"]'
-            try:
-                await page.wait_for_selector(selector, timeout=60000) # Tăng lên 60s
-            except:
-                print("⚠️ Không tìm thấy selector chuẩn, thử chụp ảnh màn hình lỗi...")
-                await page.screenshot(path="error_layout.png")
-                raise Exception("Không tìm thấy ô nhập liệu sau 60 giây.")
+            # Bước 2: Nạp Token
+            print("--- Đang nạp Token ---")
+            await page.evaluate(f"window.localStorage.setItem('token', '\"{token}\"');")
+            await asyncio.sleep(1)
 
+            # Bước 3: Vào thẳng kênh chat
+            print(f"--- Đang truy cập kênh: {channel_id} ---")
+            await page.goto(f"https://discord.com/channels/@me/{channel_id}", wait_until="networkidle")
+            
+            # Bước 4: Chờ ô chat và gửi lệnh
+            print("--- Đang tìm ô chat... ---")
+            selector = '[data-slate-editor="true"], [role="textbox"]'
+            await page.wait_for_selector(selector, timeout=60000)
+            
             chat_input = page.locator(selector).first
             await chat_input.click()
-            await asyncio.sleep(1)
-            
-            print("--- Đang gõ /bot ---")
             await chat_input.type("/bot", delay=200)
             
+            print("--- Đợi menu & Gửi ---")
             await asyncio.sleep(4) 
-            print("--- Chọn lệnh (Tab) ---")
             await page.keyboard.press("Tab")
-            await asyncio.sleep(2)
-            
-            print("--- Gửi (Enter) ---")
+            await asyncio.sleep(1.5)
             await page.keyboard.press("Enter")
+            
             print("✅ THÀNH CÔNG!")
             
         except Exception as e:
             print(f"❌ LỖI: {e}")
-            await page.screenshot(path="ketqua.png")
+            await page.screenshot(path="loi_chi_tiet.png")
         finally:
             await browser.close()
 
