@@ -1,40 +1,24 @@
-name: VSPhone Auto Register AI Worker
+name: Discord Auto Bot 15m
 
 on:
-  repository_dispatch:
-    types: [run-tool]
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:      # Nút này để bạn test ngay lập tức mà không cần đợi 15p
 
 jobs:
-  build:
+  run-bot:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-          cache: 'pip'
-
-      - name: Install System Dependencies
+      - name: Install dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libgl1 libegl1 libxrender1 libxext6 libglib2.0-0
-
-      - name: Install Python Libraries
-        run: |
-          pip install playwright playwright-stealth requests opencv-python-headless numpy
+          pip install playwright
           playwright install chromium --with-deps
-
-      - name: Run Registration Script
-        run: |
-          # Sửa lỗi truyền thiếu tham số
-          python register.py "${{ github.event.client_payload.email }}" "${{ github.event.client_payload.password }}" "${{ github.event.client_payload.ref }}"
-
-      - name: Upload Result Screenshot
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: registration-result
-          path: ketqua.png
+      - name: Execute Bot
+        env:
+          DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+        run: python bot_discord.py
