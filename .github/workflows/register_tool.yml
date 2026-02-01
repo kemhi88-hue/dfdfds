@@ -15,8 +15,9 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-          cache: 'pip' # Cache các thư viện pip
+          cache: 'pip'
 
+      # Tối ưu: Cache trình duyệt Chromium
       - name: Cache Playwright Browsers
         id: cache-playwright
         uses: actions/cache@v4
@@ -27,7 +28,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install playwright
-          # Chỉ cài trình duyệt nếu cache chưa có
+          # Nếu cache chưa có thì mới cài trình duyệt
           if [ "${{ steps.cache-playwright.outputs.cache-hit }}" != "true" ]; then
             playwright install chromium --with-deps
           else
@@ -39,11 +40,9 @@ jobs:
           DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
         run: python bot_discord.py
 
-      - name: Upload Error Screenshot
+      - name: Upload Logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: bot-result
-          path: |
-            ketqua.png
-            error_layout.png
+          name: logs-result
+          path: loi_chi_tiet.png
